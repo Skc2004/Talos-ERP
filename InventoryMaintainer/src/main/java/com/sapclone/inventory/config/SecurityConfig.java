@@ -2,10 +2,13 @@ package com.sapclone.inventory.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -16,22 +19,29 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity  // Enables @PreAuthorize on controllers
 public class SecurityConfig {
 
     @Value("${cors.allowed.origins:http://localhost:5173}")
     private String allowedOrigins;
+
+    private final JwtAuthFilter jwtAuthFilter;
+
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
-            // PLACEHOLDER FOR AUTH0: 
-            // In a production environment with Auth0, you'd mandate authentication.
-            // Example: .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-            //          .oauth2ResourceServer(oauth2 -> oauth2.jwt());
-            // For now, to prevent breaking the local frontend before IAM is fully wired:
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
+                // Public endpoints
+                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/api/v1/**").permitAll()  // JWT filter still extracts role for @PreAuthorize
                 .anyRequest().permitAll()
             );
 

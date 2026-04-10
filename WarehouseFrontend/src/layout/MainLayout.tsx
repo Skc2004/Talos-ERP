@@ -30,27 +30,43 @@ export const MainLayout = ({ children, session, role }: any) => {
                     
                     <NavLink to="/" icon={<LayoutDashboard size={18} />} label="Global Pulse" active={location.pathname === '/'} />
                     
-                    {(role === 'SUPER_ADMIN' || role === 'PLANNER') && (
+                    {['SUPER_ADMIN', 'PLANNER'].includes(role) && (
                         <NavLink to="/logic-debugger" icon={<Activity size={18} />} label="Logic Debugger" active={location.pathname === '/logic-debugger'} />
                     )}
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">CRM & Operations</div>
-                    <NavLink to="/crm" icon={<Users size={18} />} label="Lead Pipeline" active={location.pathname === '/crm'} />
-                    <NavLink to="/kanban" icon={<Kanban size={18} />} label="Shop Floor" active={location.pathname === '/kanban'} />
-                    <NavLink to="/projects" icon={<CalendarDays size={18} />} label="Project Timeline" active={location.pathname === '/projects'} />
+                    {['SUPER_ADMIN', 'SALES', 'PLANNER'].includes(role) && (
+                        <NavLink to="/crm" icon={<Users size={18} />} label="Lead Pipeline" active={location.pathname === '/crm'} />
+                    )}
+                    {['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'].includes(role) && (
+                        <NavLink to="/kanban" icon={<Kanban size={18} />} label="Shop Floor" active={location.pathname === '/kanban'} />
+                    )}
+                    {['SUPER_ADMIN', 'PLANNER', 'SALES'].includes(role) && (
+                        <NavLink to="/projects" icon={<CalendarDays size={18} />} label="Project Timeline" active={location.pathname === '/projects'} />
+                    )}
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">Data & Finance</div>
-                    <NavLink to="/data-ingestion" icon={<Upload size={18} />} label="Sales Data Upload" active={location.pathname === '/data-ingestion'} />
-                    <NavLink to="/finance" icon={<Wallet size={18} />} label="Cashflow & P&L" active={location.pathname === '/finance'} />
+                    {['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'].includes(role) && (
+                        <NavLink to="/data-ingestion" icon={<Upload size={18} />} label="Sales Data Upload" active={location.pathname === '/data-ingestion'} />
+                    )}
+                    {['SUPER_ADMIN', 'FINANCE'].includes(role) && (
+                        <NavLink to="/finance" icon={<Wallet size={18} />} label="Cashflow & P&L" active={location.pathname === '/finance'} />
+                    )}
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">System</div>
-                    {(role === 'SUPER_ADMIN' || role === 'PLANNER') && (
+                    {['SUPER_ADMIN', 'PLANNER'].includes(role) && (
                         <NavLink to="/system-health" icon={<ShieldCheck size={18} />} label="System Integrity" active={location.pathname === '/system-health'} />
                     )}
                     <NavLink to="/settings" icon={<Settings size={18} />} label="Profile & RBAC" active={location.pathname === '/settings'} />
                 </nav>
 
-                <div className="p-4 border-t border-slate-800">
+                <div className="p-4 border-t border-slate-800 space-y-3">
+                    <div className="px-2">
+                        <div className="text-xs text-slate-500 truncate">{session?.user?.email || 'User'}</div>
+                        <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-emerald-500/20 text-emerald-400 tracking-wider">
+                            {role}
+                        </span>
+                    </div>
                     <button onClick={() => supabase.auth.signOut()} className="flex items-center gap-2 text-slate-400 hover:text-red-400 w-full p-2 transition-colors">
                         <LogOut size={18} />
                         <span className="text-sm font-medium">Sign Out</span>

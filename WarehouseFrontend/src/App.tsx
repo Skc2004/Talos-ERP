@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import { MainLayout } from './layout/MainLayout';
 import Dashboard from './Dashboard';
+import { LoginPage } from './pages/LoginPage';
 import { SettingsProfile } from './pages/SettingsProfile';
 import { LogicDebugger } from './pages/LogicDebugger';
 import { SystemIntegrity } from './pages/SystemIntegrity';
@@ -13,48 +14,64 @@ import { DataIngestion } from './pages/DataIngestion';
 import { FinancialDashboard } from './pages/FinancialDashboard';
 import { CommandPalette } from './CommandPalette';
 
+// Role-based route access map
+const ROLE_ACCESS: Record<string, string[]> = {
+  '/':               ['SUPER_ADMIN', 'FINANCE', 'WAREHOUSE_OPERATOR', 'SALES', 'PLANNER', 'VIEWER'],
+  '/logic-debugger': ['SUPER_ADMIN', 'PLANNER'],
+  '/system-health':  ['SUPER_ADMIN', 'PLANNER'],
+  '/crm':            ['SUPER_ADMIN', 'SALES', 'PLANNER'],
+  '/kanban':         ['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'],
+  '/projects':       ['SUPER_ADMIN', 'PLANNER', 'SALES'],
+  '/data-ingestion': ['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'],
+  '/finance':        ['SUPER_ADMIN', 'FINANCE'],
+  '/settings':       ['SUPER_ADMIN', 'FINANCE', 'WAREHOUSE_OPERATOR', 'SALES', 'PLANNER', 'VIEWER'],
+};
+
+const RoleGate = ({ role, path, children }: { role: string; path: string; children: React.ReactNode }) => {
+  const allowed = ROLE_ACCESS[path] || [];
+  return allowed.includes(role) ? <>{children}</> : <Navigate to="/" replace />;
+};
+
 const App = () => {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<any>(null);
   const [userRole, setUserRole] = useState('VIEWER');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       extractRole(session);
+      setLoading(false);
     });
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       extractRole(session);
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const extractRole = (currentSession: any) => {
     if (currentSession?.user?.app_metadata?.user_role) {
       setUserRole(currentSession.user.app_metadata.user_role);
+    } else if (currentSession?.user?.user_metadata?.role) {
+      setUserRole(currentSession.user.user_metadata.role);
+    } else {
+      setUserRole('VIEWER');
     }
   };
 
-  if (!session) {
-    // For demo purposes, forcefully bypass auth since GitHub provider isn't enabled in this Supabase instance
+  if (loading) {
     return (
-      <BrowserRouter>
-        <MainLayout session={{ user: { id: 'demo' } }} role="SUPER_ADMIN">
-          <Routes>
-            <Route path="/" element={<Dashboard role="SUPER_ADMIN" />} />
-            <Route path="/logic-debugger" element={<LogicDebugger />} />
-            <Route path="/system-health" element={<SystemIntegrity />} />
-            <Route path="/crm" element={<CrmDashboard />} />
-            <Route path="/kanban" element={<ShopFloorKanban />} />
-            <Route path="/projects" element={<ProjectOverview />} />
-            <Route path="/data-ingestion" element={<DataIngestion />} />
-            <Route path="/finance" element={<FinancialDashboard />} />
-            <Route path="/settings" element={<SettingsProfile session={{}} role="SUPER_ADMIN" />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </MainLayout>
-      </BrowserRouter>
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-500 border-t-transparent" />
+      </div>
     );
+  }
+
+  if (!session) {
+    return <LoginPage />;
   }
 
   return (
@@ -62,13 +79,13 @@ const App = () => {
       <MainLayout session={session} role={userRole}>
         <Routes>
           <Route path="/" element={<Dashboard role={userRole} />} />
-          <Route path="/logic-debugger" element={userRole === 'SUPER_ADMIN' || userRole === 'PLANNER' ? <LogicDebugger /> : <Navigate to="/" />} />
-          <Route path="/system-health" element={userRole === 'SUPER_ADMIN' || userRole === 'PLANNER' ? <SystemIntegrity /> : <Navigate to="/" />} />
-          <Route path="/crm" element={<CrmDashboard />} />
-          <Route path="/kanban" element={<ShopFloorKanban />} />
-          <Route path="/projects" element={<ProjectOverview />} />
-          <Route path="/data-ingestion" element={<DataIngestion />} />
-          <Route path="/finance" element={<FinancialDashboard />} />
+          <Route path="/logic-debugger" element={<RoleGate role={userRole} path="/logic-debugger"><LogicDebugger /></RoleGate>} />
+          <Route path="/system-health" element={<RoleGate role={userRole} path="/system-health"><SystemIntegrity /></RoleGate>} />
+          <Route path="/crm" element={<RoleGate role={userRole} path="/crm"><CrmDashboard /></RoleGate>} />
+          <Route path="/kanban" element={<RoleGate role={userRole} path="/kanban"><ShopFloorKanban /></RoleGate>} />
+          <Route path="/projects" element={<RoleGate role={userRole} path="/projects"><ProjectOverview /></RoleGate>} />
+          <Route path="/data-ingestion" element={<RoleGate role={userRole} path="/data-ingestion"><DataIngestion /></RoleGate>} />
+          <Route path="/finance" element={<RoleGate role={userRole} path="/finance"><FinancialDashboard /></RoleGate>} />
           <Route path="/settings" element={<SettingsProfile session={session} role={userRole} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

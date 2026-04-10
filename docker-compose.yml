@@ -1,0 +1,93 @@
+version: '3.9'
+
+services:
+  # ─── Redis Message Broker ───
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ─── React Frontend ───
+  frontend:
+    build: ./WarehouseFrontend
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_JAVA_API_URL=http://backend-java:8080/api/v1
+      - VITE_PYTHON_API_URL=http://backend-python:8000
+    depends_on:
+      backend-java:
+        condition: service_healthy
+      backend-python:
+        condition: service_healthy
+
+  # ─── Spring Boot Java Backend ───
+  backend-java:
+    build: ./InventoryMaintainer
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=${SUPABASE_DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-postgres}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - CORS_ALLOWED_ORIGINS=http://localhost:5173,http://frontend:80
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - PYTHON_GATEWAY_URL=http://backend-python:8000
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  # ─── FastAPI Python AI Gateway ───
+  backend-python:
+    build: ./InsightMantra
+    ports:
+      - "8000:8000"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - ALLOWED_ORIGINS=http://localhost:5173,http://frontend:80
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # ─── Celery Worker (Async AI Tasks) ───
+  celery-worker:
+    build: ./InsightMantra
+    command: celery -A tasks worker --loglevel=info --concurrency=2
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ─── IoT Gateway Simulator ───
+  iot-gateway:
+    build:
+      context: ./IoTGateway
+      dockerfile: ../InsightMantra/Dockerfile
+    command: python simulator.py
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    depends_on:
+      backend-python:
+        condition: service_healthy
+    profiles:
+      - iot  # Only runs with: docker-compose --profile iot up
