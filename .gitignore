@@ -1,0 +1,20 @@
+# Java
+target/
+*.jar
+
+# JDK
+jdk21/
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+
+# Env files
+.env
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
