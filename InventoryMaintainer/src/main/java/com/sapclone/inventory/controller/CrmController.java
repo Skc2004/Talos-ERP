@@ -1,5 +1,8 @@
 package com.sapclone.inventory.controller;
 
+import com.sapclone.inventory.dto.CrmLeadRequest;
+import com.sapclone.inventory.dto.CrmLeadResponse;
+import com.sapclone.inventory.dto.DtoMapper;
 import com.sapclone.inventory.model.CrmLead;
 import com.sapclone.inventory.repository.CrmLeadRepository;
 import com.sapclone.inventory.service.ProjectService;
@@ -10,11 +13,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/v1/crm")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class CrmController {
 
     private final ProjectService projectService;
@@ -22,27 +26,30 @@ public class CrmController {
 
     /** Get all leads, sorted by AI score. */
     @GetMapping("/leads")
-    public ResponseEntity<List<CrmLead>> getAllLeads() {
-        return ResponseEntity.ok(crmLeadRepository.findAllByOrderByAiScoreDesc());
+    public ResponseEntity<Page<CrmLeadResponse>> getAllLeads(Pageable pageable) {
+        return ResponseEntity.ok(crmLeadRepository.findAllByOrderByAiScoreDesc(pageable)
+                .map(DtoMapper::toResponse));
     }
 
     /** Get a single lead by ID. */
     @GetMapping("/leads/{id}")
-    public ResponseEntity<CrmLead> getLead(@PathVariable UUID id) {
+    public ResponseEntity<CrmLeadResponse> getLead(@PathVariable UUID id) {
         return crmLeadRepository.findById(id)
+                .map(DtoMapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     /** Create a new lead. */
     @PostMapping("/leads")
-    public ResponseEntity<CrmLead> createLead(@RequestBody CrmLead lead) {
-        return ResponseEntity.ok(crmLeadRepository.save(lead));
+    public ResponseEntity<CrmLeadResponse> createLead(@RequestBody CrmLeadRequest request) {
+        CrmLead lead = DtoMapper.toEntity(request);
+        return ResponseEntity.ok(DtoMapper.toResponse(crmLeadRepository.save(lead)));
     }
 
     /** Update an existing lead (edit fields, change status, etc). */
     @PutMapping("/leads/{id}")
-    public ResponseEntity<CrmLead> updateLead(@PathVariable UUID id, @RequestBody CrmLead updated) {
+    public ResponseEntity<CrmLeadResponse> updateLead(@PathVariable UUID id, @RequestBody CrmLeadRequest updated) {
         return crmLeadRepository.findById(id)
                 .map(existing -> {
                     if (updated.getContactName() != null) existing.setContactName(updated.getContactName());
@@ -54,20 +61,20 @@ public class CrmController {
                     if (updated.getSource() != null) existing.setSource(updated.getSource());
                     if (updated.getNotes() != null) existing.setNotes(updated.getNotes());
                     if (updated.getAssignedTo() != null) existing.setAssignedTo(updated.getAssignedTo());
-                    return ResponseEntity.ok(crmLeadRepository.save(existing));
+                    return ResponseEntity.ok(DtoMapper.toResponse(crmLeadRepository.save(existing)));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     /** Reassign a lead to another employee. */
     @PatchMapping("/leads/{id}/assign")
-    public ResponseEntity<CrmLead> reassignLead(
+    public ResponseEntity<CrmLeadResponse> reassignLead(
             @PathVariable UUID id,
             @RequestParam UUID employeeId) {
         return crmLeadRepository.findById(id)
                 .map(lead -> {
                     lead.setAssignedTo(employeeId);
-                    return ResponseEntity.ok(crmLeadRepository.save(lead));
+                    return ResponseEntity.ok(DtoMapper.toResponse(crmLeadRepository.save(lead)));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

@@ -11,7 +11,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/inventory")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class RebalanceController {
 
     private final StockService stockService;

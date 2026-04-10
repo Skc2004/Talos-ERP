@@ -10,6 +10,7 @@ Scores leads based on:
 Output: Score 0-100, where 100 = highest priority lead.
 """
 import os
+import json
 import logging
 from dotenv import load_dotenv
 from supabase import create_client
@@ -18,54 +19,55 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://nkctzzerpcughgwhpduf.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+supabase = None
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+else:
+    logger.warning("Supabase credentials missing in lead_scoring.py")
 
-# Source quality weights
-SOURCE_WEIGHTS = {
-    "REFERRAL": 1.0,
-    "TRADE_SHOW": 0.85,
-    "WEBSITE": 0.7,
-    "COLD_CALL": 0.5,
-}
-
+# Load Business Rules
+try:
+    with open(os.path.join(os.path.dirname(__file__), "business_rules.json")) as f:
+        RULES = json.load(f)["lead_scoring"]
+except Exception as e:
+    logger.error("Failed to load business_rules.json, using defaults.")
+    RULES = {
+        "source_weights": {"COLD_CALL": 0.5},
+        "components": {"value_weight": 0.45, "source_weight": 0.25, "recency_weight": 0.15, "engagement_weight": 0.15},
+        "max_expected_value": 500000.0,
+        "status_scores": {"NEW": 20}
+    }
 
 def score_lead(lead: dict) -> float:
     """
-    Computes a composite AI score (0-100) for a single lead.
-
-    Formula:
-        score = (value_component * 0.45) + (source_component * 0.25) +
-                (recency_component * 0.15) + (engagement_component * 0.15)
+    Computes a composite AI score (0-100) for a single lead using business rules.
     """
-    # 1. Value Component (0-100): normalized against a max expected value of 500K
-    max_value = 500_000.0
+    comps = RULES["components"]
+    
+    # 1. Value Component
+    max_value = RULES.get("max_expected_value", 500000.0)
     value = float(lead.get("potential_value", 0))
     value_component = min(100, (value / max_value) * 100)
 
-    # 2. Source Quality Component (0-100)
+    # 2. Source Quality Component
     source = lead.get("source", "COLD_CALL")
-    source_weight = SOURCE_WEIGHTS.get(source, 0.5)
+    source_weight = RULES["source_weights"].get(source, 0.5)
     source_component = source_weight * 100
 
-    # 3. Recency Component (0-100): newer leads score higher
-    # Simple proxy: if lead has notes, it's been engaged with
+    # 3. Recency Component
     recency_component = 70 if lead.get("notes") else 30
 
-    # 4. Engagement signal: status progression indicates interest
-    status_scores = {
-        "NEW": 20, "CONTACTED": 40, "QUOTED": 60,
-        "NEGOTIATING": 80, "WON": 100, "LOST": 0
-    }
-    engagement_component = status_scores.get(lead.get("status", "NEW"), 20)
+    # 4. Engagement signal
+    engagement_component = RULES["status_scores"].get(lead.get("status", "NEW"), 20)
 
     # Weighted composite
     score = (
-        value_component * 0.45 +
-        source_component * 0.25 +
-        recency_component * 0.15 +
-        engagement_component * 0.15
+        value_component * comps.get("value_weight", 0.45) +
+        source_component * comps.get("source_weight", 0.25) +
+        recency_component * comps.get("recency_weight", 0.15) +
+        engagement_component * comps.get("engagement_weight", 0.15)
     )
 
     return round(min(100, max(0, score)), 2)

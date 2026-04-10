@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, DollarSign, TrendingUp, Target, Plus, Trash2, UserCheck, X } from 'lucide-react';
 
-const JAVA_API = 'http://localhost:8080/api/v1';
+const JAVA_API = import.meta.env.VITE_JAVA_API_URL || 'http://localhost:8080/api/v1';
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: 'bg-blue-500', CONTACTED: 'bg-indigo-500', QUOTED: 'bg-amber-500',
@@ -15,6 +15,7 @@ export const CrmDashboard = () => {
   const [employees, setEmployees] = useState<any[]>([]);
   const [pipeline, setPipeline] = useState<any>({});
   const [showNewLead, setShowNewLead] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [newLead, setNewLead] = useState({ contact_name: '', contact_email: '', company_name: '', potential_value: '', source: 'WEBSITE', notes: '' });
 
   useEffect(() => {
@@ -29,7 +30,9 @@ export const CrmDashboard = () => {
   async function loadData() {
     try {
       const res = await fetch(`${JAVA_API}/crm/leads`);
-      const data = await res.json();
+      if (!res.ok) throw new Error('API Error');
+      const responseBody = await res.json();
+      const data = responseBody.content || responseBody; // Handle Pageable
       setLeads(data);
       const funnel: Record<string, number> = {};
       let totalValue = 0;
@@ -41,9 +44,7 @@ export const CrmDashboard = () => {
       setPipeline({ totalLeads: data.length, totalPipelineValue: totalValue,
         conversionRate: data.length > 0 ? ((wonCount / data.length) * 100).toFixed(1) : '0', funnel });
     } catch {
-      // Fallback to Supabase direct
-      const { data } = await supabase.from('crm_leads').select('*').order('ai_score', { ascending: false });
-      if (data) { setLeads(data); }
+      setError('Data service disconnected. Failed to load leads.');
     }
   }
 

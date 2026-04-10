@@ -8,9 +8,22 @@ from supabase import create_client, Client
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "http://127.0.0.1:54321")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "your-service-role-key")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+else:
+    logger.warning("Supabase credentials missing, database integration will fail.")
+    supabase = None
+
+# Load Config
+try:
+    with open(os.path.join(os.path.dirname(__file__), "config.json")) as f:
+        config = json.load(f)
+except Exception as e:
+    logger.warning("Could not load config.json, using fallback defaults.")
+    config = {"machines": ["DEFAULT-MACHINE"], "anomaly_threshold_hz": 59.0}
 
 # Assuming 'IoT_telemetry' table is created in Supabase (or we just use it as logic mock)
 
@@ -21,7 +34,8 @@ def simulate_factory_floor():
     """
     logger.info("Initializing Real-Time IoT Telemetry Stream...")
     
-    machines = ["EXTRUDER-01", "MOLDING-A3", "PACKAGING-LINE-2"]
+    machines = config.get("machines", [])
+    anomaly_threshold = config.get("anomaly_threshold_hz", 59.0)
     
     while True:
         try:
@@ -34,7 +48,7 @@ def simulate_factory_floor():
                 }
                 
                 # If vibration spikes, mark anomaly (could trigger Kafka alert)
-                if payload['vibration_hz'] > 59.0:
+                if payload['vibration_hz'] > anomaly_threshold:
                     payload['status'] = "ANOMALY_DETECTED"
                     logger.warning(f"ANOMALY ON {machine}! {payload}")
                 

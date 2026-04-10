@@ -6,6 +6,7 @@ import com.sapclone.inventory.repository.StockLedgerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.*;
 
@@ -16,6 +17,18 @@ public class StockService {
 
     private final SkuMasterRepository skuMasterRepository;
     private final StockLedgerRepository stockLedgerRepository;
+
+    @Value("${inventory.zscore:1.645}")
+    private double zScore;
+
+    @Value("${inventory.health.optimal:14}")
+    private int healthOptimal;
+
+    @Value("${inventory.health.healthy:7}")
+    private int healthHealthy;
+
+    @Value("${inventory.health.warning:3}")
+    private int healthWarning;
 
     /**
      * Calculates live rebalancing metrics for a single SKU.
@@ -41,9 +54,6 @@ public class StockService {
         int leadTime = sku.getLeadTimeDays();
 
         // ---- MATHEMATICAL ENGINE ----
-        // 95% Service Level → Z = 1.645
-        double zScore = 1.645;
-
         // Safety Stock = Z × σ_d × √L
         double safetyStockRaw = zScore * stdDevDemand * Math.sqrt(leadTime);
         int safetyStock = (int) Math.ceil(safetyStockRaw);
@@ -55,9 +65,9 @@ public class StockService {
         double healthScore = (double)(currentStock - safetyStock) / avgDailyDemand;
 
         String healthStatus;
-        if (healthScore >= 14) healthStatus = "OPTIMAL";
-        else if (healthScore >= 7) healthStatus = "HEALTHY";
-        else if (healthScore >= 3) healthStatus = "WARNING";
+        if (healthScore >= healthOptimal) healthStatus = "OPTIMAL";
+        else if (healthScore >= healthHealthy) healthStatus = "HEALTHY";
+        else if (healthScore >= healthWarning) healthStatus = "WARNING";
         else healthStatus = "CRITICAL";
 
         // Stock-Out Projection: days until zero stock

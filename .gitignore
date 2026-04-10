@@ -18,3 +18,18 @@ node_modules/
 
 # OS
 .DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Build logs
+*.log
+
+# Celery SQLite
+celerydb.sqlite
+celeryresults.sqlite
+
+# Temp files
+git_status.txt
+errors.txt

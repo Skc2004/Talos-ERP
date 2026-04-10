@@ -1,0 +1,29 @@
+{
+  "lead_scoring": {
+    "source_weights": {
+      "REFERRAL": 1.0,
+      "TRADE_SHOW": 0.85,
+      "WEBSITE": 0.7,
+      "COLD_CALL": 0.5
+    },
+    "components": {
+      "value_weight": 0.45,
+      "source_weight": 0.25,
+      "recency_weight": 0.15,
+      "engagement_weight": 0.15
+    },
+    "max_expected_value": 500000.0,
+    "status_scores": {
+      "NEW": 20,
+      "CONTACTED": 40,
+      "QUOTED": 60,
+      "NEGOTIATING": 80,
+      "WON": 100,
+      "LOST": 0
+    }
+  },
+  "z_score_thresholds": {
+    "warning": 1.5,
+    "critical": 2.0
+  }
+}

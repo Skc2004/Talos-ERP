@@ -14,7 +14,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/finance")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class FinanceController {
 
     private final AccountingService accountingService;

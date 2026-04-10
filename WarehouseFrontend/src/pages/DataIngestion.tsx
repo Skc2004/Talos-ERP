@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Database, Zap } from 'lucide-react';
 
-const JAVA_API = 'http://localhost:8080/api/v1';
+const JAVA_API = import.meta.env.VITE_JAVA_API_URL || 'http://localhost:8080/api/v1';
 
 export const DataIngestion = () => {
   const [dragActive, setDragActive] = useState(false);

@@ -1,0 +1,4 @@
+{
+  "machines": ["EXTRUDER-01", "MOLDING-A3", "PACKAGING-LINE-2"],
+  "anomaly_threshold_hz": 59.0
+}

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 import os
@@ -18,17 +18,24 @@ app = FastAPI(
 )
 
 # Allow React Frontend to call this gateway
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ─── Supabase Client ───
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://nkctzzerpcughgwhpduf.supabase.co")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    logger.warning("Missing SUPABASE credentials in environment variables")
+try:
+    supabase: Client = create_client(SUPABASE_URL or "", SUPABASE_SERVICE_ROLE_KEY or "")
+except Exception as e:
+    logger.error("Failed to initialize Supabase client: %s", str(e))
+    supabase = None
 
 # ─── Include Admin Routes ───
 from admin_routes import router as admin_router
@@ -111,23 +118,22 @@ def get_latest_sentiment():
 
 # ─── MODULE 3: Competitor Market Capture Ratio ───
 from mcr_engine import analyze_market_competitor
+from tasks import async_scan_competitor
+from celery.result import AsyncResult
 
 @app.post("/intelligence/mcr/scan")
-def scan_competitor(competitor_url: str = "https://amazon.in/dp/example"):
-    result = analyze_market_competitor(competitor_url)
+def scan_competitor(competitor_url: str):
+    task = async_scan_competitor.delay(competitor_url)
+    return {"status": "processing", "task_id": task.id}
 
-    # Persist MCR data
-    try:
-        supabase.table("competitor_data").insert({
-            "competitor_url": competitor_url,
-            "competitor_price": result["competitor_price"],
-            "competitor_bsr": result["competitor_bsr"],
-            "market_capture_ratio": result["market_capture_ratio"],
-        }).execute()
-    except Exception as e:
-        logger.warning(f"Failed to persist MCR data: {e}")
-
-    return {"status": "success", "mcr_data": result}
+@app.get("/tasks/{task_id}")
+def get_task_status(task_id: str):
+    task_result = AsyncResult(task_id)
+    return {
+        "task_id": task_id,
+        "status": task_result.status,
+        "result": task_result.result if task_result.ready() else None
+    }
 
 @app.get("/intelligence/mcr/latest")
 def get_latest_mcr():
@@ -188,15 +194,8 @@ def get_prescriptive_insights():
                            f"Suggesting an immediate transfer of 200 units.",
                 "action": "AUTO_PO_DRAFTED"
             })
-    except Exception:
-        cards.append({
-            "type": "STOCK_OUT_RISK",
-            "severity": "HIGH",
-            "title": "Stock-Out Risk Detected",
-            "message": "Item 'Echo Dot 4th Gen' will be out of stock in 4 days. "
-                       "Prophet predicts a demand spike. Suggesting immediate reorder of 200 units.",
-            "action": "AUTO_PO_DRAFTED"
-        })
+    except Exception as e:
+        logger.error(f"Error generating stock card: {e}")
 
     # Card 2: Margin Opportunity
     try:
@@ -212,57 +211,43 @@ def get_prescriptive_insights():
                 "action": "PRICE_ADJUSTMENT_SUGGESTED",
                 "mcr": mcr.get("market_capture_ratio")
             })
-        else:
-            raise ValueError("No MCR data")
-    except Exception:
-        cards.append({
-            "type": "MARGIN_OPPORTUNITY",
-            "severity": "MEDIUM",
-            "title": "Margin Opportunity Detected",
-            "message": "Competitor Y is currently stocked out of Item Z. Our Sentiment is 0.85. "
-                       "Recommend raising price by 4% to capture premium margin.",
-            "action": "PRICE_ADJUSTMENT_SUGGESTED",
-            "mcr": 0.84
-        })
+    except Exception as e:
+        logger.error(f"Error generating MCR card: {e}")
 
     # Card 3: Thermal Alert
-    machines = get_machine_health_summary()
-    anomaly_machines = [m for m in machines if m["status"] == "ANOMALY"]
-    if anomaly_machines:
-        m = anomaly_machines[0]
-        cards.append({
-            "type": "THERMAL_ALERT",
-            "severity": "CRITICAL",
-            "title": "Thermal Alert — Predictive Maintenance",
-            "message": f"{m['machine_id']} is running at {m['latest_temp']}°C "
-                       f"(z-score: {m['z_score']}, mean: {m['rolling_mean']}°C). "
-                       f"Estimated time to failure: {m.get('estimated_hours_to_failure', '?')} hours. "
-                       f"Maintenance order drafted.",
-            "action": "MAINTENANCE_ORDER_DRAFTED",
-            "machine_id": m["machine_id"]
-        })
-    else:
-        cards.append({
-            "type": "THERMAL_ALERT",
-            "severity": "CRITICAL",
-            "title": "Thermal Alert — Predictive Maintenance",
-            "message": "Extruder #4 is running 15% hotter than normal. "
-                       "Estimated time to failure: 48 hours. Maintenance order drafted.",
-            "action": "MAINTENANCE_ORDER_DRAFTED",
-            "machine_id": "EXTRUDER-01"
-        })
+    try:
+        machines = get_machine_health_summary()
+        anomaly_machines = [m for m in machines if m["status"] == "ANOMALY"]
+        if anomaly_machines:
+            m = anomaly_machines[0]
+            cards.append({
+                "type": "THERMAL_ALERT",
+                "severity": "CRITICAL",
+                "title": "Thermal Alert — Predictive Maintenance",
+                "message": f"{m['machine_id']} is running at {m['latest_temp']}°C "
+                           f"(z-score: {m['z_score']}, mean: {m['rolling_mean']}°C). "
+                           f"Estimated time to failure: {m.get('estimated_hours_to_failure', '?')} hours. "
+                           f"Maintenance order drafted.",
+                "action": "MAINTENANCE_ORDER_DRAFTED",
+                "machine_id": m["machine_id"]
+            })
+    except Exception as e:
+        logger.error(f"Error generating maintenance card: {e}")
+
+    if not cards:
+        raise HTTPException(status_code=503, detail="Service degraded. Could not generate prescriptive cards.")
 
     return {"status": "success", "cards": cards}
 
 
-# ─── MODULE 6: CRM Lead Scoring ───
 from lead_scoring import score_all_leads, get_top_leads
+from tasks import async_score_leads
 
 @app.post("/crm/score-leads")
 def run_lead_scoring():
-    """Triggers the AI lead scoring model across all active leads."""
-    results = score_all_leads()
-    return {"status": "success", "scored": len(results), "top_leads": results[:5]}
+    """Triggers the AI lead scoring model across all active leads asynchronously."""
+    task = async_score_leads.delay()
+    return {"status": "processing", "task_id": task.id}
 
 @app.get("/crm/top-leads")
 def fetch_top_leads(limit: int = 5):

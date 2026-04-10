@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, X, BarChart3, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-const JAVA_API = 'http://localhost:8080/api/v1';
+const JAVA_API = import.meta.env.VITE_JAVA_API_URL || 'http://localhost:8080/api/v1';
 
 export const FinancialDashboard = () => {
   const [pnl, setPnl] = useState<any>(null);
@@ -16,14 +16,10 @@ export const FinancialDashboard = () => {
   async function loadPnL() {
     try {
       const res = await fetch(`${JAVA_API}/finance/pnl`);
+      if (!res.ok) throw new Error('Failed to fetch P&L');
       setPnl(await res.json());
     } catch (e) {
-      // Fallback mock P&L for demo
-      setPnl({
-        grossRevenue: 0, totalOrders: 0, costOfGoodsSold: 0, grossProfit: 0,
-        operatingExpenses: 0, ebitda: 0, estimatedTax: 0, taxRate: 0.18,
-        netProfit: 0, profitMarginPercent: 0, waterfall: []
-      });
+      setPnl({ error: 'Data service disconnected or degraded.' });
     }
   }
 
@@ -78,7 +74,11 @@ export const FinancialDashboard = () => {
       </div>
 
       {/* P&L KPIs */}
-      {pnl && (
+      {pnl?.error ? (
+        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl">
+          <p className="text-sm text-red-400 font-semibold">{pnl.error}</p>
+        </div>
+      ) : pnl ? (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <PnLCard label="Gross Revenue" value={fmt(pnl.grossRevenue)} icon={<ArrowUpRight className="text-emerald-500" size={18} />} positive />
           <PnLCard label="COGS" value={fmt(pnl.costOfGoodsSold)} icon={<ArrowDownRight className="text-red-400" size={18} />} />
@@ -87,7 +87,7 @@ export const FinancialDashboard = () => {
           <PnLCard label="Net Profit" value={fmt(pnl.netProfit)} icon={<DollarSign className="text-emerald-500" size={18} />}
             subtitle={`Margin: ${pnl.profitMarginPercent?.toFixed(1)}%`} positive={pnl.netProfit > 0} highlight />
         </div>
-      )}
+      ) : null}
 
       {/* Waterfall Chart */}
       {pnl?.waterfall?.length > 0 && (

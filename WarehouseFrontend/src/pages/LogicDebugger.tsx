@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Cpu, Activity, ShieldCheck, AlertOctagon } from 'lucide-react';
 
-const JAVA_API = 'http://localhost:8080';
+const JAVA_API = import.meta.env.VITE_JAVA_API_URL || 'http://localhost:8080';
 
 const cardAnim = {
   hidden: { opacity: 0, y: 15 },
@@ -12,33 +12,18 @@ const cardAnim = {
 export const LogicDebugger = () => {
   const [skus, setSkus] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadRebalancing() {
       try {
-        const res = await fetch(`${JAVA_API}/api/v1/inventory/rebalance`);
+        const res = await fetch(`${JAVA_API}/inventory/rebalance`);
+        if (!res.ok) throw new Error('API degraded');
         const data = await res.json();
         setSkus(data);
       } catch {
-        // Fallback: simulate two SKUs so the page always renders during demo
-        setSkus([
-          {
-            sku: "B08L5WHFT9", description: "Amazon Echo Dot (4th Gen) Black",
-            leadTimeDays: 5, currentStock: 142,
-            avgDailyDemand_d: 15.5, stdDevDemand_sigma: 4.2, zScore: 1.645,
-            safetyStock_SS: 16, reorderPoint_ROP: 94,
-            healthScoreDays: 8.1, healthStatus: "HEALTHY",
-            daysUntilStockout: 9.2, needsReorder: false
-          },
-          {
-            sku: "B08C1W5N87", description: "MacBook Air M1 Silver",
-            leadTimeDays: 14, currentStock: 8,
-            avgDailyDemand_d: 2.1, stdDevDemand_sigma: 1.3, zScore: 1.645,
-            safetyStock_SS: 8, reorderPoint_ROP: 38,
-            healthScoreDays: 0.0, healthStatus: "CRITICAL",
-            daysUntilStockout: 3.8, needsReorder: true
-          }
-        ]);
+        setError('Connection to Rebalancing Engine lost. Operating in degraded mode.');
+        setSkus([]);
       } finally {
         setLoading(false);
       }
@@ -47,6 +32,8 @@ export const LogicDebugger = () => {
   }, []);
 
   if (loading) return <div className="text-slate-500 animate-pulse p-8">Computing Rebalancing Matrix...</div>;
+
+  if (error) return <div className="text-red-400 p-8 font-semibold bg-red-400/10 border-l-4 border-red-500 rounded-lg">{error}</div>;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
