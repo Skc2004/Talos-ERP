@@ -41,10 +41,45 @@ except Exception as e:
 from admin_routes import router as admin_router
 app.include_router(admin_router)
 
+# ─── NL Query Engine (Ask Talos) ───
+from nl_query_engine import NLQueryEngine
+nl_engine = NLQueryEngine(supabase) if supabase else None
+
 # ─── Root Health Check ───
 @app.get("/")
 def health_check():
-    return {"status": "Insight Mantra AI Gateway is operational.", "version": "2.0.0"}
+    return {"status": "Insight Mantra AI Gateway is operational.", "version": "3.0.0"}
+
+
+# ─── MODULE 0: Ask Talos — Generative AI Interface ───
+from pydantic import BaseModel
+
+class NLQueryRequest(BaseModel):
+    question: str
+
+@app.post("/ai/query")
+def ask_talos(request: NLQueryRequest):
+    """Natural language → SQL → result. Uses Gemini LLM with 20-template fallback."""
+    if not nl_engine:
+        return {"status": "error", "message": "AI engine not initialized (missing Supabase)"}
+    return nl_engine.query(request.question)
+
+@app.get("/ai/suggestions")
+def get_ai_suggestions():
+    """Returns contextual query suggestions for the command palette."""
+    if not nl_engine:
+        return {"suggestions": ["Show me the P&L", "Top leads", "Stock alerts"]}
+    return {"suggestions": nl_engine.get_suggestions()}
+
+# ─── MODULE 0b: Autonomous Procurement Agent ───
+from autonomous_agent import auto_procurement_check
+
+@app.post("/agent/procurement-scan")
+def trigger_procurement_agent():
+    """Manually trigger the autonomous procurement agent."""
+    if not supabase:
+        return {"status": "error", "message": "Supabase not configured"}
+    return auto_procurement_check(supabase)
 
 
 # ─── MODULE 1: Demand Forecasting (Prophet) ───

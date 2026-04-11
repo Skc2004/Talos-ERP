@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, X, BarChart3, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, X, BarChart3, ArrowDownRight, ArrowUpRight, Radio } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { supabase } from '../supabaseClient';
 
 const JAVA_API = import.meta.env.VITE_JAVA_API_URL || 'http://localhost:8080/api/v1';
 
@@ -10,8 +11,24 @@ export const FinancialDashboard = () => {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [newExpense, setNewExpense] = useState({ description: '', category: 'PAYROLL', amount: '', expense_date: '' });
+  const [lastUpdated, setLastUpdated] = useState<string>('—');
+  const [liveFeed, setLiveFeed] = useState<any[]>([]);
 
-  useEffect(() => { loadPnL(); loadExpenses(); }, []);
+  useEffect(() => {
+    loadPnL(); loadExpenses();
+
+    // ── Continuous Close: Realtime subscription to general_ledger ──
+    const channel = supabase.channel('ledger-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'general_ledger' }, (payload) => {
+        // Auto-refresh P&L on new ledger entries
+        loadPnL();
+        setLastUpdated(new Date().toLocaleTimeString());
+        setLiveFeed(prev => [payload.new, ...prev.slice(0, 9)]);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   async function loadPnL() {
     try {

@@ -29,7 +29,19 @@ const ROLE_ACCESS: Record<string, string[]> = {
 
 const RoleGate = ({ role, path, children }: { role: string; path: string; children: React.ReactNode }) => {
   const allowed = ROLE_ACCESS[path] || [];
-  return allowed.includes(role) ? <>{children}</> : <Navigate to="/" replace />;
+  if (allowed.includes(role)) return <>{children}</>;
+  const defaultRoute = ROLE_DEFAULT_ROUTE[role] || '/';
+  return <Navigate to={defaultRoute} replace />;
+};
+
+// Per-role default home page
+const ROLE_DEFAULT_ROUTE: Record<string, string> = {
+  'WAREHOUSE_OPERATOR': '/kanban',
+  'FINANCE':            '/finance',
+  'SALES':              '/crm',
+  'PLANNER':            '/',
+  'SUPER_ADMIN':        '/',
+  'VIEWER':             '/',
 };
 
 const App = () => {

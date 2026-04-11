@@ -6,6 +6,8 @@ import com.sapclone.inventory.repository.FinExpenseRepository;
 import com.sapclone.inventory.repository.GeneralLedgerRepository;
 import com.sapclone.inventory.repository.HrEmployeeRepository;
 import com.sapclone.inventory.service.AccountingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/finance")
 @RequiredArgsConstructor
+@Tag(name = "Finance & Accounting", description = "P&L, Expenses, Double-Entry Ledger, Journal Entries")
 public class FinanceController {
 
     private final AccountingService accountingService;

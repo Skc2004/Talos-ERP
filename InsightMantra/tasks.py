@@ -62,3 +62,34 @@ def async_score_leads(self):
     except Exception as exc:
         logger.error(f"Lead scoring failed: {exc}")
         raise self.retry(exc=exc)
+
+
+@celery_app.task(bind=True, max_retries=2, retry_backoff=True)
+def async_procurement_check(self):
+    """Autonomous agent: scan inventory and auto-draft POs for low-stock SKUs."""
+    try:
+        from autonomous_agent import auto_procurement_check
+        from supabase import create_client
+        import os
+        sb = create_client(
+            os.environ.get("SUPABASE_URL", ""),
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+        )
+        return auto_procurement_check(sb)
+    except Exception as exc:
+        logger.error(f"Procurement agent failed: {exc}")
+        raise self.retry(exc=exc)
+
+
+# ─── Celery Beat Schedule (periodic tasks) ───
+celery_app.conf.beat_schedule = {
+    "procurement-scan-every-6h": {
+        "task": "tasks.async_procurement_check",
+        "schedule": 21600.0,  # 6 hours in seconds
+    },
+    "lead-scoring-daily": {
+        "task": "tasks.async_score_leads",
+        "schedule": 86400.0,  # 24 hours
+    },
+}
+
