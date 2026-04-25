@@ -28,14 +28,14 @@ export const SystemIntegrity = () => {
   async function loadData() {
     try {
       const logsRes = await supabase
-        .table('test_logs')
+        .from('test_logs')
         .select('*')
         .order('executed_at', { ascending: false })
         .limit(20);
       if (logsRes.data) setTestLogs(logsRes.data);
 
       const auditRes = await supabase
-        .table('ml_audit')
+        .from('ml_audit')
         .select('*')
         .order('audited_at', { ascending: false })
         .limit(10);

@@ -3,7 +3,7 @@ import sys
 
 # Replace with the actual URL taking port into account
 DB_URL = "postgres://postgres:HelloSKC808%40%40@db.nkctzzerpcughgwhpduf.supabase.co:5432/postgres?sslmode=require"
-SQL_FILE = "D:/DevVault/SAP_CLONE/supabase/migrations/20260410000000_talos_enterprise_expansion.sql"
+SQL_FILE = "D:/DevVault/SAP_CLONE/supabase/migrations/20260417000010_advanced_forecasting_schema.sql"
 
 try:
     with open(SQL_FILE, 'r') as f:

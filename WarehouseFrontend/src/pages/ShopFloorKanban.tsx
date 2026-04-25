@@ -27,7 +27,7 @@ export const ShopFloorKanban = () => {
 
   async function loadProjects() {
     try {
-      const { data } = await supabase.table('projects').select('*').order('priority', { ascending: true });
+      const { data } = await supabase.from('projects').select('*').order('priority', { ascending: true });
       if (data) setProjects(data);
 
       // Load deadline health view
@@ -42,7 +42,7 @@ export const ShopFloorKanban = () => {
 
   async function moveProject(projectId: string, newStatus: string) {
     try {
-      await supabase.table('projects').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', projectId);
+      await supabase.from('projects').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', projectId);
       loadProjects();
     } catch (e) {
       console.error('Move failed:', e);

@@ -56,7 +56,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getStdDevDailyDemand60Days(any())).thenReturn(4.2);
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(250);
 
-            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
 
             // SS = ceil(1.645 × 4.2 × √5) = ceil(1.645 × 4.2 × 2.2360679...) = ceil(15.449...) = 16
             assertEquals(16, result.get("safetyStock_SS"));
@@ -70,7 +70,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getStdDevDailyDemand60Days(any())).thenReturn(0.0);
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(100);
 
-            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
 
             assertEquals(0, result.get("safetyStock_SS"));
         }
@@ -84,7 +84,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getStdDevDailyDemand60Days(any())).thenReturn(12.0);
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(50);
 
-            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
 
             int ss = (int) result.get("safetyStock_SS");
             // ceil(1.645 × 12 × 3.7416573...) = ceil(73.86...) = 74
@@ -104,7 +104,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getStdDevDailyDemand60Days(any())).thenReturn(4.2);
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(250);
 
-            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
 
             int rop = (int) result.get("reorderPoint_ROP");
             // ceil((15.5 × 5) + 16) = ceil(93.5) = 94
@@ -124,7 +124,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getStdDevDailyDemand60Days(any())).thenReturn(4.2);
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(250);
 
-            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
 
             assertEquals("OPTIMAL", result.get("healthStatus"));
         }
@@ -137,7 +137,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getStdDevDailyDemand60Days(any())).thenReturn(4.2);
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(8);
 
-            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
 
             assertEquals("CRITICAL", result.get("healthStatus"));
             assertTrue((boolean) result.get("needsReorder"));
@@ -151,7 +151,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getStdDevDailyDemand60Days(any())).thenReturn(4.2);
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(60);
 
-            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+            Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
 
             String status = (String) result.get("healthStatus");
             assertTrue(status.equals("WARNING") || status.equals("CRITICAL"));
@@ -167,7 +167,7 @@ class StockServiceTest {
         void unknownSku() {
             when(skuMasterRepository.findBySkuCode("INVALID")).thenReturn(null);
 
-            Map<String, Object> result = stockService.calculateRebalancingMetrics("INVALID");
+            Map<String, Object> result = stockService.calculateRebalancingMetrics("INVALID", null, null, null, null);
 
             assertTrue(result.containsKey("error"));
         }
@@ -181,7 +181,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(null);
 
             assertDoesNotThrow(() -> {
-                Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+                Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
                 assertEquals(0, result.get("currentStock"));
             });
         }
@@ -195,7 +195,7 @@ class StockServiceTest {
             when(stockLedgerRepository.getCurrentStockForSku(any())).thenReturn(100);
 
             assertDoesNotThrow(() -> {
-                Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001");
+                Map<String, Object> result = stockService.calculateRebalancingMetrics("TEST-SKU-001", null, null, null, null);
                 assertNotNull(result.get("healthScoreDays"));
             });
         }

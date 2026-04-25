@@ -53,7 +53,7 @@ export const HealthHeartbeat = () => {
     // Check Supabase via a lightweight query
     try {
       const start = Date.now();
-      const { data, error } = await (await import('../supabaseClient')).supabase.table('sku_master').select('id').limit(1);
+      const { data, error } = await (await import('../supabaseClient')).supabase.from('sku_master').select('id').limit(1);
       const latency = Date.now() - start;
       updated.push({
         name: 'Database', url: '', status: error ? 'DOWN' : 'UP',

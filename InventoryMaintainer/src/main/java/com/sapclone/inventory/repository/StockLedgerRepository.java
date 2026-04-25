@@ -44,4 +44,15 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, UUID> 
         ) sub
         """, nativeQuery = true)
     Double getStdDevDailyDemand60Days(@Param("skuId") UUID skuId);
+
+    /**
+     * Get total stock per location for warehouse capacity map.
+     */
+    @Query(value = """
+        SELECT location, COALESCE(SUM(quantity), 0) AS total_stock
+        FROM stock_ledger
+        WHERE location IS NOT NULL
+        GROUP BY location
+        """, nativeQuery = true)
+    java.util.List<Object[]> getStockByLocation();
 }

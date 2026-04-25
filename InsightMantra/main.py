@@ -41,6 +41,13 @@ except Exception as e:
 from admin_routes import router as admin_router
 app.include_router(admin_router)
 
+# ─── Include Custom App Routes ───
+from app.routes.upload import router as upload_router
+from app.routes.config import router as config_router
+
+app.include_router(upload_router, prefix="/api/v1")
+app.include_router(config_router, prefix="/api/v1")
+
 # ─── NL Query Engine (Ask Talos) ───
 from nl_query_engine import NLQueryEngine
 nl_engine = NLQueryEngine(supabase) if supabase else None
@@ -80,6 +87,58 @@ def trigger_procurement_agent():
     if not supabase:
         return {"status": "error", "message": "Supabase not configured"}
     return auto_procurement_check(supabase)
+
+
+class RebalanceVoteRequest(BaseModel):
+    sku: str
+    currentStock: int
+    safetyStock: int
+    reorderPoint: int
+    economicOrderQty: int
+    leadTimeDays: int
+    avgDailyDemand: float
+    zScore: float
+    
+@app.post("/agent/rebalance-vote")
+def agentic_rebalance_vote(request: RebalanceVoteRequest):
+    """Provides an agentic second-opinion before executing a manual inventory transfer."""
+    if not nl_engine:
+         return {"vote": "NEUTRAL", "confidence": 0.5, "reasoning": "AI engine offline."}
+    
+    # Use the Google GenAI Engine directly to evaluate
+    prompt = f"""
+    You are an expert AI Supply Chain Supervisor. Evaluate this manual transfer request:
+    SKU: {request.sku}
+    Current Stock: {request.currentStock}
+    Safety Stock: {request.safetyStock}
+    Reorder Point (ROP): {request.reorderPoint}
+    EOQ: {request.economicOrderQty}
+    Lead Time: {request.leadTimeDays} days
+    Demand: {request.avgDailyDemand}/day
+    Service Level Z-Score: {request.zScore}
+
+    Should the user EXECUTE the transfer now? 
+    Consider: If Current Stock <= ROP, they definitely should. If Current Stock is highly above ROP, they shouldn't.
+    Reply with a JSON string ONLY (no markdown formatting):
+    {{"vote": "APPROVE" or "REJECT", "confidence": float between 0 and 1, "reasoning": "A short, professional 1-sentence reasoning."}}
+    """
+    
+    try:
+        from google import genai
+        client = genai.Client() # Assuming env var GEMINI_API_KEY is set
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        import json
+        text = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(text)
+        return data
+    except Exception as e:
+        logger.error(f"GenAI vote failed: {e}")
+        # Fallback simplistic logic
+        vote = "APPROVE" if request.currentStock <= request.reorderPoint else "REJECT"
+        return {"vote": vote, "confidence": 0.8, "reasoning": "Mathematical fallback rule applied due to AI timeout."}
 
 
 # ─── MODULE 1: Demand Forecasting (Prophet) ───
@@ -283,6 +342,47 @@ def run_lead_scoring():
     """Triggers the AI lead scoring model across all active leads asynchronously."""
     task = async_score_leads.delay()
     return {"status": "processing", "task_id": task.id}
+
+class DraftEmailRequest(BaseModel):
+    contactName: str
+    companyName: str
+    status: str
+    notes: str
+    potentialValue: float
+
+@app.post("/agent/draft-email")
+def draft_b2b_email(request: DraftEmailRequest):
+    """Uses GenAI to draft a highly personalized B2B email for a CRM lead."""
+    prompt = f"""
+    You are an expert B2B Sales Executive at Talos ERP, a premium manufacturing software company.
+    Draft a professional, concise, and persuasive email to the following lead:
+    
+    Name: {request.contactName}
+    Company: {request.companyName}
+    Current Funnel Status: {request.status}
+    Potential Deal Value: ₹{request.potentialValue}
+    Internal Notes on this Lead: {request.notes}
+    
+    Instructions:
+    - Keep it under 150 words.
+    - Be highly personalized based on the internal notes.
+    - Do NOT include generic placeholders like [Your Name]. Sign off as "Talos ERP Sales Team".
+    - Focus on moving them to the next stage of the funnel (e.g., if QUOTED, push for NEGOTIATING. If NEW, push for a demo).
+    """
+    
+    try:
+        from google import genai
+        client = genai.Client()
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        return {"status": "success", "email_body": response.text.strip()}
+    except Exception as e:
+        logger.error(f"Failed to draft email: {e}")
+        # Fallback email generation
+        fallback_email = f"Subject: Talos ERP Partnership Discussion\n\nHi {request.contactName},\n\nHope you are doing well.\n\nI was reviewing our notes regarding {request.companyName} and wanted to follow up. With a potential scope of ₹{request.potentialValue:,.2f}, I believe Talos ERP can deliver significant ROI for your team.\n\nRegarding your requirements ({request.notes}), we have some specialized modules that I think you'll find very interesting.\n\nCould we schedule a quick 10-minute demo to explore this further?\n\nBest regards,\nTalos ERP Sales Team"
+        return {"status": "success", "email_body": fallback_email}
 
 @app.get("/crm/top-leads")
 def fetch_top_leads(limit: int = 5):

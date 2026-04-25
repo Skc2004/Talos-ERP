@@ -15,4 +15,6 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, UUID> {
     BigDecimal getTotalRevenue();
 
     long countByStatus(String status);
+
+    boolean existsByOrderNumber(String orderNumber);
 }

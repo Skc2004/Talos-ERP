@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 import { MainLayout } from './layout/MainLayout';
 import Dashboard from './Dashboard';
 import { LoginPage } from './pages/LoginPage';
-import { SettingsProfile } from './pages/SettingsProfile';
+import { Settings } from './pages/Settings';
 import { LogicDebugger } from './pages/LogicDebugger';
 import { SystemIntegrity } from './pages/SystemIntegrity';
 import { CrmDashboard } from './pages/CrmDashboard';
@@ -12,6 +12,7 @@ import { ShopFloorKanban } from './pages/ShopFloorKanban';
 import { ProjectOverview } from './pages/ProjectOverview';
 import { DataIngestion } from './pages/DataIngestion';
 import { FinancialDashboard } from './pages/FinancialDashboard';
+import { WarehouseMapPage } from './pages/WarehouseMapPage';
 import { CommandPalette } from './CommandPalette';
 
 // Role-based route access map
@@ -83,7 +84,27 @@ const App = () => {
   }
 
   if (!session) {
-    return <LoginPage />;
+    // For local testing and demo, bypass the auth wall since Supabase GitHub isn't configured
+    return (
+      <BrowserRouter>
+        <MainLayout session={{ user: { email: 'demo@taloserp.com' } }} role="SUPER_ADMIN">
+          <Routes>
+            <Route path="/" element={<Dashboard role="SUPER_ADMIN" />} />
+            <Route path="/inventory-engine" element={<RoleGate role="SUPER_ADMIN" path="/logic-debugger"><LogicDebugger /></RoleGate>} />
+            <Route path="/system-health" element={<RoleGate role="SUPER_ADMIN" path="/system-health"><SystemIntegrity /></RoleGate>} />
+            <Route path="/crm" element={<RoleGate role="SUPER_ADMIN" path="/crm"><CrmDashboard /></RoleGate>} />
+            <Route path="/kanban" element={<RoleGate role="SUPER_ADMIN" path="/kanban"><ShopFloorKanban /></RoleGate>} />
+            <Route path="/warehouse-map" element={<WarehouseMapPage />} />
+            <Route path="/projects" element={<RoleGate role="SUPER_ADMIN" path="/projects"><ProjectOverview /></RoleGate>} />
+            <Route path="/data-ingestion" element={<RoleGate role="SUPER_ADMIN" path="/data-ingestion"><DataIngestion /></RoleGate>} />
+            <Route path="/finance" element={<RoleGate role="SUPER_ADMIN" path="/finance"><FinancialDashboard /></RoleGate>} />
+            <Route path="/settings" element={<RoleGate role="SUPER_ADMIN" path="/settings"><Settings /></RoleGate>} />
+            <Route path="/logic-debugger" element={<Navigate to="/inventory-engine" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </MainLayout>
+      </BrowserRouter>
+    );
   }
 
   return (
@@ -91,14 +112,16 @@ const App = () => {
       <MainLayout session={session} role={userRole}>
         <Routes>
           <Route path="/" element={<Dashboard role={userRole} />} />
-          <Route path="/logic-debugger" element={<RoleGate role={userRole} path="/logic-debugger"><LogicDebugger /></RoleGate>} />
+          <Route path="/inventory-engine" element={<RoleGate role={userRole} path="/logic-debugger"><LogicDebugger /></RoleGate>} />
           <Route path="/system-health" element={<RoleGate role={userRole} path="/system-health"><SystemIntegrity /></RoleGate>} />
           <Route path="/crm" element={<RoleGate role={userRole} path="/crm"><CrmDashboard /></RoleGate>} />
           <Route path="/kanban" element={<RoleGate role={userRole} path="/kanban"><ShopFloorKanban /></RoleGate>} />
+          <Route path="/warehouse-map" element={<WarehouseMapPage />} />
           <Route path="/projects" element={<RoleGate role={userRole} path="/projects"><ProjectOverview /></RoleGate>} />
           <Route path="/data-ingestion" element={<RoleGate role={userRole} path="/data-ingestion"><DataIngestion /></RoleGate>} />
           <Route path="/finance" element={<RoleGate role={userRole} path="/finance"><FinancialDashboard /></RoleGate>} />
-          <Route path="/settings" element={<SettingsProfile session={session} role={userRole} />} />
+          <Route path="/settings" element={<RoleGate role={userRole} path="/settings"><Settings /></RoleGate>} />
+          <Route path="/logic-debugger" element={<Navigate to="/inventory-engine" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MainLayout>

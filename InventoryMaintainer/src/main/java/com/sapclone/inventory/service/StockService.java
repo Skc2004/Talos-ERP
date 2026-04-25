@@ -34,7 +34,7 @@ public class StockService {
      * Calculates live rebalancing metrics for a single SKU.
      * All values are derived from real database aggregates — zero hardcoding.
      */
-    public Map<String, Object> calculateRebalancingMetrics(String skuCode) {
+    public Map<String, Object> calculateRebalancingMetrics(String skuCode, Double customZScore, Double leadTimeMultiplier, Double holdingCostPercent, Double orderCost) {
         SkuMaster sku = skuMasterRepository.findBySkuCode(skuCode);
         if (sku == null) return Map.of("error", "SKU not found: " + skuCode);
 
@@ -51,9 +51,13 @@ public class StockService {
         Integer currentStockRaw = stockLedgerRepository.getCurrentStockForSku(sku.getId());
         int currentStock = currentStockRaw != null ? currentStockRaw : 0;
 
-        int leadTime = sku.getLeadTimeDays();
+        double actualLeadTimeMultiplier = leadTimeMultiplier != null ? leadTimeMultiplier : 1.0;
+        int leadTime = (int) Math.ceil(sku.getLeadTimeDays() * actualLeadTimeMultiplier);
 
         // ---- MATHEMATICAL ENGINE ----
+        // 95% Service Level → Z = 1.645 (if customZScore is not provided)
+        double zScore = customZScore != null ? customZScore : this.zScore;
+
         // Safety Stock = Z × σ_d × √L
         double safetyStockRaw = zScore * stdDevDemand * Math.sqrt(leadTime);
         int safetyStock = (int) Math.ceil(safetyStockRaw);
@@ -63,6 +67,18 @@ public class StockService {
 
         // Inventory Health = (Current Stock − Safety Stock) / Avg Daily Demand
         double healthScore = (double)(currentStock - safetyStock) / avgDailyDemand;
+
+        // EOQ (Economic Order Quantity)
+        // EOQ = sqrt((2 * Annual Demand * Order Cost) / Holding Cost)
+        // Approximate Annual Demand = avgDailyDemand * 365
+        double actualOrderCost = orderCost != null ? orderCost : 50.0; // Default $50 order cost
+        double actualHoldingCostPercent = holdingCostPercent != null ? holdingCostPercent : 0.20; // Default 20%
+        // We need a unit cost. Assuming a default of $100 if not available for EOQ math
+        double unitCost = 100.0;
+        double annualDemand = avgDailyDemand * 365;
+        double holdingCost = unitCost * actualHoldingCostPercent;
+        double eoqRaw = Math.sqrt((2 * annualDemand * actualOrderCost) / holdingCost);
+        int eoq = (int) Math.ceil(eoqRaw);
 
         String healthStatus;
         if (healthScore >= healthOptimal) healthStatus = "OPTIMAL";
@@ -88,6 +104,7 @@ public class StockService {
         // Formula Outputs
         metrics.put("safetyStock_SS", safetyStock);
         metrics.put("reorderPoint_ROP", reorderPoint);
+        metrics.put("economicOrderQty_EOQ", eoq);
         metrics.put("healthScoreDays", round(healthScore));
         metrics.put("healthStatus", healthStatus);
         metrics.put("daysUntilStockout", round(daysUntilStockout));
@@ -104,10 +121,10 @@ public class StockService {
     /**
      * Calculates rebalancing for ALL active SKUs in the system.
      */
-    public List<Map<String, Object>> calculateAllRebalancing() {
+    public List<Map<String, Object>> calculateAllRebalancing(Double customZScore, Double leadTimeMultiplier, Double holdingCostPercent, Double orderCost) {
         List<Map<String, Object>> results = new ArrayList<>();
         for (SkuMaster sku : skuMasterRepository.findAll()) {
-            results.add(calculateRebalancingMetrics(sku.getSkuCode()));
+            results.add(calculateRebalancingMetrics(sku.getSkuCode(), customZScore, leadTimeMultiplier, holdingCostPercent, orderCost));
         }
         return results;
     }

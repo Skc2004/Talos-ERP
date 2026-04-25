@@ -24,9 +24,9 @@ export const ProjectOverview = () => {
 
   async function loadData() {
     const [projRes, msRes, leadRes] = await Promise.all([
-      supabase.table('projects').select('*').order('deadline', { ascending: true }),
-      supabase.table('project_milestones').select('*'),
-      supabase.table('crm_leads').select('*').neq('status', 'LOST')
+      supabase.from('projects').select('*').order('deadline', { ascending: true }),
+      supabase.from('project_milestones').select('*'),
+      supabase.from('crm_leads').select('*').neq('status', 'LOST')
     ]);
     if (projRes.data) setProjects(projRes.data);
     if (msRes.data) setMilestones(msRes.data);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { CommandPalette } from '../CommandPalette';
 import { HealthHeartbeat } from '../components/HealthHeartbeat';
@@ -31,7 +31,7 @@ export const MainLayout = ({ children, session, role }: any) => {
                     <NavLink to="/" icon={<LayoutDashboard size={18} />} label="Global Pulse" active={location.pathname === '/'} />
                     
                     {['SUPER_ADMIN', 'PLANNER'].includes(role) && (
-                        <NavLink to="/logic-debugger" icon={<Activity size={18} />} label="Logic Debugger" active={location.pathname === '/logic-debugger'} />
+                        <NavLink to="/logic-debugger" icon={<PackageSearch size={18} />} label="Inventory Engine" active={location.pathname === '/logic-debugger' || location.pathname === '/inventory-engine'} />
                     )}
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">CRM & Operations</div>
@@ -41,6 +41,7 @@ export const MainLayout = ({ children, session, role }: any) => {
                     {['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'].includes(role) && (
                         <NavLink to="/kanban" icon={<Kanban size={18} />} label="Shop Floor" active={location.pathname === '/kanban'} />
                     )}
+                    <NavLink to="/warehouse-map" icon={<MapPin size={18} />} label="Warehouse Map" active={location.pathname === '/warehouse-map'} />
                     {['SUPER_ADMIN', 'PLANNER', 'SALES'].includes(role) && (
                         <NavLink to="/projects" icon={<CalendarDays size={18} />} label="Project Timeline" active={location.pathname === '/projects'} />
                     )}

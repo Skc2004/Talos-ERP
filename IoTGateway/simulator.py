@@ -60,12 +60,17 @@ def simulate_factory_floor():
                     # Auto-draft maintenance order
                     _draft_maintenance_order(machine, payload)
                 
+<<<<<<< HEAD
                 # Write to Supabase (LIVE — feeds Digital Twin via Realtime)
                 if supabase:
                     try:
                         supabase.table("iot_telemetry").insert(payload).execute()
                     except Exception as e:
                         logger.error(f"Failed to write telemetry: {e}")
+=======
+                # Real-Time write
+                supabase.table("iot_telemetry").insert(payload).execute()
+>>>>>>> 901b206 (Update: Inventory Maintainer section)
                 
                 logger.info(f"📡 Telemetry: {json.dumps(payload)}")
                 

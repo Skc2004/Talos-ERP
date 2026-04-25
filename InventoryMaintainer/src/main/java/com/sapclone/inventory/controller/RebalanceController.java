@@ -29,8 +29,13 @@ public class RebalanceController {
     @GetMapping("/rebalance/{skuCode}")
     @Operation(summary = "Get rebalancing metrics for a single SKU",
                description = "Computes ROP, Safety Stock (Z-Score), Health Score, and Stockout Projection")
-    public ResponseEntity<Map<String, Object>> getRebalancingMetrics(@PathVariable String skuCode) {
-        Map<String, Object> calculations = stockService.calculateRebalancingMetrics(skuCode);
+    public ResponseEntity<Map<String, Object>> getRebalancingMetrics(
+            @PathVariable String skuCode,
+            @RequestParam(required = false) Double zScore,
+            @RequestParam(required = false) Double leadTimeMultiplier,
+            @RequestParam(required = false) Double holdingCostPercent,
+            @RequestParam(required = false) Double orderCost) {
+        Map<String, Object> calculations = stockService.calculateRebalancingMetrics(skuCode, zScore, leadTimeMultiplier, holdingCostPercent, orderCost);
         if (calculations.containsKey("error")) {
             return ResponseEntity.notFound().build();
         }
@@ -43,8 +48,12 @@ public class RebalanceController {
      */
     @GetMapping("/rebalance")
     @Operation(summary = "Get rebalancing metrics for all SKUs")
-    public ResponseEntity<List<Map<String, Object>>> getAllRebalancingMetrics() {
-        return ResponseEntity.ok(stockService.calculateAllRebalancing());
+    public ResponseEntity<List<Map<String, Object>>> getAllRebalancingMetrics(
+            @RequestParam(required = false) Double zScore,
+            @RequestParam(required = false) Double leadTimeMultiplier,
+            @RequestParam(required = false) Double holdingCostPercent,
+            @RequestParam(required = false) Double orderCost) {
+        return ResponseEntity.ok(stockService.calculateAllRebalancing(zScore, leadTimeMultiplier, holdingCostPercent, orderCost));
     }
 
     /**

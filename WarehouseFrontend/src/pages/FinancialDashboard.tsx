@@ -43,7 +43,8 @@ export const FinancialDashboard = () => {
   async function loadExpenses() {
     try {
       const res = await fetch(`${JAVA_API}/finance/expenses`);
-      setExpenses(await res.json());
+      const data = await res.json();
+      setExpenses(Array.isArray(data) ? data : []);
     } catch { setExpenses([]); }
   }
 
@@ -110,7 +111,7 @@ export const FinancialDashboard = () => {
       {pnl?.waterfall?.length > 0 && (
         <div className="bg-[#1E293B] border border-slate-800 rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-medium text-slate-200 mb-4">P&L Waterfall</h3>
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="99%" height={320}>
             <BarChart data={pnl.waterfall} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
               <XAxis dataKey="label" stroke="#94a3b8" fontSize={10} tickLine={false} angle={-20} textAnchor="end" height={60} />
               <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} />

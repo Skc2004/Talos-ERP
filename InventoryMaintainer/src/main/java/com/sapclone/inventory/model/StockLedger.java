@@ -21,7 +21,7 @@ public class StockLedger {
     private SkuMaster sku;
     
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type", nullable = false)
+    @Column(name = "transaction_type", nullable = false, columnDefinition = "varchar")
     private TransactionType transactionType;
     
     @Column(nullable = false)

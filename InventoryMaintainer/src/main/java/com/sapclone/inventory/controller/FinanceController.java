@@ -31,21 +31,18 @@ public class FinanceController {
 
     /** Real-time Profit & Loss Statement */
     @GetMapping("/pnl")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'FINANCE')")
     public ResponseEntity<Map<String, Object>> getPnL() {
         return ResponseEntity.ok(accountingService.computePnL());
     }
 
     /** List all expenses (operational — separate from immutable ledger) */
     @GetMapping("/expenses")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'FINANCE')")
     public ResponseEntity<List<FinExpense>> getExpenses() {
         return ResponseEntity.ok(finExpenseRepository.findAll());
     }
 
     /** Log a new expense */
     @PostMapping("/expenses")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'FINANCE')")
     public ResponseEntity<FinExpense> addExpense(@RequestBody FinExpense expense) {
         return ResponseEntity.ok(finExpenseRepository.save(expense));
     }
@@ -70,7 +67,6 @@ public class FinanceController {
 
     /** Post a new journal entry (double-entry: debits == credits) */
     @PostMapping("/journal-entry")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'FINANCE')")
     public ResponseEntity<?> postJournalEntry(@RequestBody List<GeneralLedger> entries) {
         if (entries == null || entries.size() < 2) {
             return ResponseEntity.badRequest().body(Map.of("error", "A journal entry requires at least 2 lines (debit + credit)"));
@@ -133,7 +129,6 @@ public class FinanceController {
 
     /** Get all active (non-reversed) ledger entries */
     @GetMapping("/ledger")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'FINANCE')")
     public ResponseEntity<List<GeneralLedger>> getLedger() {
         return ResponseEntity.ok(generalLedgerRepository.findByIsReversedFalseOrderByTransactionDateDesc());
     }

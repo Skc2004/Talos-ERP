@@ -32,11 +32,36 @@ export const DigitalTwin = () => {
   const [alerts, setAlerts] = useState<string[]>([]);
 
   useEffect(() => {
+    async function fetchLatest() {
+        const machineIds = ["EXTRUDER-01", "MOLDING-A3", "PACKAGING-LINE-2"];
+        const updates: any = {};
+        for (const mid of machineIds) {
+            const { data } = await supabase
+                .from('iot_telemetry')
+                .select('*')
+                .eq('machine_id', mid)
+                .order('recorded_at', { ascending: false })
+                .limit(1);
+            if (data && data.length > 0) {
+                updates[mid] = {
+                    temp: parseFloat(data[0].temp_celsius),
+                    status: data[0].status,
+                    vibration: parseFloat(data[0].vibration_hz || 0),
+                    lastUpdate: new Date(data[0].recorded_at).toLocaleTimeString()
+                };
+            }
+        }
+        if (Object.keys(updates).length > 0) {
+            setMachines(prev => ({ ...prev, ...updates }));
+        }
+    }
+    fetchLatest();
+
     const channel = supabase.channel('iot-telemetry-live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'iot_telemetry' }, payload => {
         const node = payload.new as any;
         const isAnomaly = node.status === 'ANOMALY_DETECTED' || node.temp_celsius > 210;
-
+        
         setMachines(prev => ({
           ...prev,
           [node.machine_id]: {
