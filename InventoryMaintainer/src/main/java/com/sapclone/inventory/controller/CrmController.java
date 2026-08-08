@@ -4,7 +4,9 @@ import com.sapclone.inventory.dto.CrmLeadRequest;
 import com.sapclone.inventory.dto.CrmLeadResponse;
 import com.sapclone.inventory.dto.DtoMapper;
 import com.sapclone.inventory.model.CrmLead;
+import com.sapclone.inventory.model.CrmActivity;
 import com.sapclone.inventory.repository.CrmLeadRepository;
+import com.sapclone.inventory.repository.CrmActivityRepository;
 import com.sapclone.inventory.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +25,7 @@ public class CrmController {
 
     private final ProjectService projectService;
     private final CrmLeadRepository crmLeadRepository;
+    private final CrmActivityRepository crmActivityRepository;
 
     /** Get all leads, sorted by AI score. */
     @GetMapping("/leads")
@@ -115,4 +118,36 @@ public class CrmController {
     public ResponseEntity<List<Map<String, Object>>> getConflicts() {
         return ResponseEntity.ok(projectService.detectResourceConflicts());
     }
+
+    // ──────────────────────────────────────────────
+    // ACTIVITY TIMELINE ENDPOINTS
+    // ──────────────────────────────────────────────
+
+    /** Get all activities for a specific lead. */
+    @GetMapping("/leads/{leadId}/activities")
+    public ResponseEntity<List<CrmActivity>> getLeadActivities(@PathVariable UUID leadId) {
+        return ResponseEntity.ok(crmActivityRepository.findByLeadIdOrderByCreatedAtDesc(leadId));
+    }
+
+    /** Log a new activity on a lead. */
+    @PostMapping("/leads/{leadId}/activities")
+    public ResponseEntity<CrmActivity> logActivity(@PathVariable UUID leadId, @RequestBody CrmActivity activity) {
+        activity.setLeadId(leadId);
+        return ResponseEntity.ok(crmActivityRepository.save(activity));
+    }
+
+    /** Mark an activity/follow-up as completed. */
+    @PatchMapping("/activities/{activityId}/complete")
+    public ResponseEntity<CrmActivity> completeActivity(@PathVariable UUID activityId) {
+        return crmActivityRepository.findById(activityId)
+                .map(a -> { a.setIsCompleted(true); return ResponseEntity.ok(crmActivityRepository.save(a)); })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /** Get all pending follow-ups across all leads. */
+    @GetMapping("/follow-ups")
+    public ResponseEntity<List<CrmActivity>> getPendingFollowUps() {
+        return ResponseEntity.ok(crmActivityRepository.findByFollowUpDateIsNotNullAndIsCompletedFalseOrderByFollowUpDateAsc());
+    }
 }
+

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, DollarSign, TrendingUp, Target, Plus, Trash2, UserCheck, X, LayoutDashboard, List, Zap, Mail, Rocket, CheckCircle2, Copy } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, Target, Plus, Trash2, UserCheck, X, LayoutDashboard, List, Zap, Mail, Rocket, CheckCircle2, Copy, Search, Filter, Clock, Phone, MessageSquare, CalendarCheck, StickyNote, ChevronRight, CheckSquare, Square, FileText } from 'lucide-react';
 
 const JAVA_API = import.meta.env.VITE_JAVA_API_URL || 'http://localhost:8080/api/v1';
 const PYTHON_API = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:8000';
@@ -13,6 +13,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 const FUNNEL_STAGES = ['NEW', 'CONTACTED', 'QUOTED', 'NEGOTIATING', 'WON', 'LOST'];
 
+const ACTIVITY_ICONS: Record<string,any> = { CALL: Phone, EMAIL: Mail, MEETING: CalendarCheck, NOTE: StickyNote, TASK: CheckSquare };
+const SOURCES = ['WEBSITE','REFERRAL','COLD_CALL','TRADE_SHOW'];
+
 export const CrmDashboard = () => {
   const [leads, setLeads] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -20,7 +23,7 @@ export const CrmDashboard = () => {
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [showNewLead, setShowNewLead] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // AI Email Drafter States
   const [draftEmailLead, setDraftEmailLead] = useState<any>(null);
   const [draftedEmailText, setDraftedEmailText] = useState<string>('');
@@ -30,7 +33,39 @@ export const CrmDashboard = () => {
   // Scoring State
   const [isScoring, setIsScoring] = useState(false);
 
+  // Phase 1: Search, Filter, Bulk, Activity
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<string|null>(null);
+  const [sortBy, setSortBy] = useState<'value'|'score'|'date'>('score');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [activityLead, setActivityLead] = useState<any>(null);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [showLogActivity, setShowLogActivity] = useState(false);
+  const [newActivity, setNewActivity] = useState({ activityType: 'NOTE', description: '', followUpDate: '' });
+
+  // Phase 2: Quotation Builder
+  const [quoteLead, setQuoteLead] = useState<any>(null);
+  const [quoteItems, setQuoteItems] = useState<{desc:string,qty:number,price:number}[]>([{desc:'',qty:1,price:0}]);
+  const [quoteTaxRate, setQuoteTaxRate] = useState(18);
+  const [quoteSaving, setQuoteSaving] = useState(false);
+
   const [newLead, setNewLead] = useState({ contact_name: '', contact_email: '', company_name: '', potential_value: '', source: 'WEBSITE', notes: '' });
+
+  // Filtered + sorted leads
+  const filteredLeads = useMemo(() => {
+    let result = leads;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(l => (l.contactName||l.contact_name||'').toLowerCase().includes(q) || (l.companyName||l.company_name||'').toLowerCase().includes(q) || (l.contactEmail||l.contact_email||'').toLowerCase().includes(q));
+    }
+    if (sourceFilter) result = result.filter(l => l.source === sourceFilter);
+    result = [...result].sort((a,b) => {
+      if (sortBy==='value') return parseFloat(b.potentialValue||b.potential_value||0) - parseFloat(a.potentialValue||a.potential_value||0);
+      if (sortBy==='score') return parseFloat(b.aiScore||b.ai_score||0) - parseFloat(a.aiScore||a.ai_score||0);
+      return new Date(b.createdAt||b.created_at||0).getTime() - new Date(a.createdAt||a.created_at||0).getTime();
+    });
+    return result;
+  }, [leads, searchQuery, sourceFilter, sortBy]);
 
   useEffect(() => {
     loadData();
@@ -174,6 +209,70 @@ export const CrmDashboard = () => {
     setTimeout(() => setEmailCopied(false), 2000);
   };
 
+  // ── Phase 1: Activity & Bulk Handlers ──
+  async function openActivityDrawer(lead: any) {
+    setActivityLead(lead);
+    try {
+      const res = await fetch(`${JAVA_API}/crm/leads/${lead.id}/activities`);
+      setActivities(Array.isArray(await res.json().then(d => { setActivities(d); return d; })) ? activities : []);
+    } catch { setActivities([]); }
+  }
+  async function loadActivitiesFor(leadId: string) {
+    try { const r = await fetch(`${JAVA_API}/crm/leads/${leadId}/activities`); const d = await r.json(); setActivities(Array.isArray(d)?d:[]); } catch { setActivities([]); }
+  }
+  async function handleLogActivity() {
+    if (!activityLead || !newActivity.description) return;
+    try {
+      await fetch(`${JAVA_API}/crm/leads/${activityLead.id}/activities`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ activityType: newActivity.activityType, description: newActivity.description, followUpDate: newActivity.followUpDate || null })
+      });
+      setNewActivity({ activityType: 'NOTE', description: '', followUpDate: '' });
+      setShowLogActivity(false);
+      loadActivitiesFor(activityLead.id);
+    } catch(e) { console.error(e); }
+  }
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
+  }
+  function selectAll() { setSelectedIds(new Set(filteredLeads.map(l=>l.id))); }
+  function deselectAll() { setSelectedIds(new Set()); }
+  async function bulkUpdateStatus(status: string) {
+    for (const id of selectedIds) {
+      await fetch(`${JAVA_API}/crm/leads/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
+    }
+    deselectAll(); loadData();
+  }
+  async function bulkDelete() {
+    if (!confirm(`Delete ${selectedIds.size} leads permanently?`)) return;
+    for (const id of selectedIds) { await fetch(`${JAVA_API}/crm/leads/${id}`, {method:'DELETE'}); }
+    deselectAll(); loadData();
+  }
+
+  // ── Phase 2: Quotation Handlers ──
+  function openQuoteBuilder(lead: any) {
+    setQuoteLead(lead);
+    setQuoteItems([{desc:'',qty:1,price:0}]);
+    setQuoteTaxRate(18);
+  }
+  function addQuoteLine() { setQuoteItems([...quoteItems, {desc:'',qty:1,price:0}]); }
+  function removeQuoteLine(i:number) { setQuoteItems(quoteItems.filter((_,idx)=>idx!==i)); }
+  function updateQuoteLine(i:number, field:string, val:any) { const n=[...quoteItems]; (n[i] as any)[field]=val; setQuoteItems(n); }
+  const quoteSubtotal = quoteItems.reduce((s,it)=>s+(it.qty*it.price),0);
+  const quoteTotal = quoteSubtotal * (1 + quoteTaxRate/100);
+  async function handleSaveQuotation() {
+    if (!quoteLead) return;
+    setQuoteSaving(true);
+    try {
+      await fetch(`${JAVA_API}/crm/leads/${quoteLead.id}/quotations`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ items: JSON.stringify(quoteItems), subtotal: quoteSubtotal.toFixed(2), taxRate: quoteTaxRate, total: quoteTotal.toFixed(2), validUntil: new Date(Date.now()+30*86400000).toISOString().split('T')[0], status: 'DRAFT' })
+      });
+      setQuoteLead(null);
+    } catch(e) { console.error(e); }
+    setQuoteSaving(false);
+  }
+
   const KPICard = ({ icon, label, value }: any) => (
     <div className="bg-[#1E293B] border border-slate-800 rounded-xl p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-3">{icon}<span className="text-sm text-slate-400">{label}</span></div>
@@ -221,6 +320,33 @@ export const CrmDashboard = () => {
 
       {error && <div className="text-red-400 p-4 font-semibold bg-red-400/10 border border-red-500 rounded-lg">{error}</div>}
 
+      {/* Search, Filter, Sort Bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search leads..." className="w-full bg-[#1E293B] border border-slate-700 rounded-xl pl-10 pr-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Filter size={14} className="text-slate-500" />
+          {SOURCES.map(s => (<button key={s} onClick={()=>setSourceFilter(sourceFilter===s?null:s)} className={`text-[10px] font-bold px-2.5 py-1 rounded-full transition-colors ${sourceFilter===s?'bg-indigo-500 text-white':'bg-[#1E293B] text-slate-400 border border-slate-700 hover:border-slate-500'}`}>{s.replace('_',' ')}</button>))}
+        </div>
+        <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} className="bg-[#1E293B] border border-slate-700 text-xs text-slate-300 rounded-lg px-2.5 py-2 outline-none">
+          <option value="score">Sort: AI Score</option><option value="value">Sort: Value</option><option value="date">Sort: Newest</option>
+        </select>
+      </div>
+
+      {/* Bulk Action Toolbar */}
+      {selectedIds.size > 0 && (
+        <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} className="flex items-center gap-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-4 py-2.5">
+          <span className="text-sm font-bold text-indigo-400">{selectedIds.size} selected</span>
+          <select onChange={e=>{if(e.target.value)bulkUpdateStatus(e.target.value);e.target.value='';}} defaultValue="" className="bg-[#0F172A] border border-slate-700 text-xs text-slate-300 rounded px-2 py-1 outline-none">
+            <option value="" disabled>Move to...</option>{FUNNEL_STAGES.map(s=><option key={s} value={s}>{s}</option>)}
+          </select>
+          <button onClick={bulkDelete} className="text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1"><Trash2 size={12}/>Delete All</button>
+          <button onClick={deselectAll} className="text-xs text-slate-400 hover:text-white ml-auto">Clear</button>
+        </motion.div>
+      )}
+
       {viewMode === 'kanban' ? (
         <div className="flex overflow-x-auto gap-4 pb-4 snap-x">
           {FUNNEL_STAGES.map((stage) => (
@@ -231,11 +357,11 @@ export const CrmDashboard = () => {
                   <h3 className="font-bold text-slate-300 text-sm">{stage}</h3>
                 </div>
                 <span className="text-xs font-bold text-slate-500 bg-[#1E293B] px-2 py-0.5 rounded-full">
-                  {leads.filter(l => l.status === stage).length}
+                  {filteredLeads.filter(l => l.status === stage).length}
                 </span>
               </div>
               <div className="p-3 space-y-3 overflow-y-auto max-h-[65vh] custom-scrollbar">
-                {leads.filter(l => l.status === stage).map(lead => (
+                {filteredLeads.filter(l => l.status === stage).map(lead => (
                   <motion.div layoutId={`lead-${lead.id}`} key={lead.id} className="bg-[#1E293B] border border-slate-700 hover:border-slate-500 transition-colors p-4 rounded-xl shadow-sm group">
                     <div className="flex justify-between items-start mb-2">
                       <div>
@@ -256,6 +382,9 @@ export const CrmDashboard = () => {
                     
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-800">
                       <div className="flex items-center gap-1">
+                        <button onClick={()=>toggleSelect(lead.id)} className={`p-1.5 rounded transition-colors ${selectedIds.has(lead.id)?'bg-indigo-500/20 text-indigo-400':'bg-slate-800 text-slate-400 hover:text-white'}`} title="Select"><CheckSquare size={14}/></button>
+                        <button onClick={()=>openActivityDrawer(lead)} className="p-1.5 bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 rounded transition-colors" title="Activity Timeline"><Clock size={14}/></button>
+                        {(lead.status === 'QUOTED' || lead.status === 'NEGOTIATING') && <button onClick={()=>openQuoteBuilder(lead)} className="p-1.5 bg-slate-800 hover:bg-purple-500/20 text-slate-400 hover:text-purple-400 rounded transition-colors" title="Build Quotation"><FileText size={14}/></button>}
                         <button onClick={() => handleDraftEmail(lead)} className="p-1.5 bg-slate-800 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 rounded transition-colors" title="AI Draft Email">
                           <Mail size={14} />
                         </button>
@@ -305,7 +434,7 @@ export const CrmDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {leads.map((lead: any) => (
+                {filteredLeads.map((lead: any) => (
                   <tr key={lead.id} className="hover:bg-[#0F172A]/50 transition-colors">
                     <td className="p-3">
                       <span className="text-indigo-400 font-bold">{(lead.aiScore || lead.ai_score)?.toFixed?.(0) || '—'}</span>
@@ -326,6 +455,8 @@ export const CrmDashboard = () => {
                       </select>
                     </td>
                     <td className="p-3 flex items-center gap-2">
+                      <button onClick={()=>toggleSelect(lead.id)} className={`p-1.5 rounded-lg transition-colors ${selectedIds.has(lead.id)?'bg-indigo-500/20 text-indigo-400':'hover:bg-slate-700 text-slate-500'}`}><CheckSquare size={16}/></button>
+                      <button onClick={()=>openActivityDrawer(lead)} className="p-1.5 rounded-lg hover:bg-amber-500/20 text-amber-400 transition-colors" title="Activity Log"><Clock size={16}/></button>
                       <button onClick={() => handleDraftEmail(lead)} className="p-1.5 rounded-lg hover:bg-indigo-500/20 text-indigo-400 transition-colors" title="Agentic Draft">
                         <Mail size={16} />
                       </button>
@@ -407,6 +538,84 @@ export const CrmDashboard = () => {
                 <button onClick={handleCreateLead} disabled={!newLead.contact_name} className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-colors">
                   Create Lead
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Activity Timeline Drawer */}
+      <AnimatePresence>
+        {activityLead && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={()=>setActivityLead(null)}>
+            <motion.div initial={{x:400}} animate={{x:0}} exit={{x:400}} transition={{type:'spring',damping:25}} className="w-full max-w-md bg-[#1E293B] border-l border-slate-700 h-full overflow-y-auto flex flex-col" onClick={e=>e.stopPropagation()}>
+              <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-[#0F172A] sticky top-0 z-10">
+                <div><h3 className="text-white font-bold">Activity Timeline</h3><p className="text-xs text-slate-400">{activityLead.companyName||activityLead.company_name} — {activityLead.contactName||activityLead.contact_name}</p></div>
+                <button onClick={()=>setActivityLead(null)} className="text-slate-500 hover:text-white"><X size={20}/></button>
+              </div>
+              <div className="p-4 border-b border-slate-800">
+                <button onClick={()=>setShowLogActivity(!showLogActivity)} className="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-bold py-2 rounded-xl transition-colors"><Plus size={14}/>Log Activity</button>
+                {showLogActivity && (
+                  <div className="mt-3 space-y-2 bg-[#0F172A] p-3 rounded-xl border border-slate-700">
+                    <select value={newActivity.activityType} onChange={e=>setNewActivity({...newActivity,activityType:e.target.value})} className="w-full bg-[#1E293B] border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                      <option value="NOTE">📝 Note</option><option value="CALL">📞 Call</option><option value="EMAIL">📧 Email</option><option value="MEETING">🤝 Meeting</option><option value="TASK">✅ Task</option>
+                    </select>
+                    <textarea value={newActivity.description} onChange={e=>setNewActivity({...newActivity,description:e.target.value})} placeholder="What happened?" rows={2} className="w-full bg-[#1E293B] border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none resize-none"/>
+                    <input type="datetime-local" value={newActivity.followUpDate} onChange={e=>setNewActivity({...newActivity,followUpDate:e.target.value})} className="w-full bg-[#1E293B] border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none" />
+                    <button onClick={handleLogActivity} disabled={!newActivity.description} className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white text-sm font-bold py-2 rounded-lg">Save Activity</button>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 p-4 space-y-3">
+                {activities.length===0 ? <p className="text-sm text-slate-500 text-center py-8">No activities logged yet.</p> : activities.map((a:any)=>{
+                  const Icon = ACTIVITY_ICONS[a.activityType] || StickyNote;
+                  return (
+                    <div key={a.id} className="flex gap-3 group">
+                      <div className="mt-1 p-1.5 rounded-lg bg-slate-800 text-slate-400 shrink-0"><Icon size={14}/></div>
+                      <div className="flex-1">
+                        <div className="text-xs text-slate-500 flex items-center gap-2"><span className="font-bold text-slate-400">{a.activityType}</span><span>{new Date(a.createdAt||a.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>
+                        <p className="text-sm text-slate-300 mt-0.5">{a.description}</p>
+                        {a.followUpDate && <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-400 font-bold"><CalendarCheck size={10}/>Follow-up: {new Date(a.followUpDate||a.follow_up_date).toLocaleDateString()}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Quotation Builder Modal */}
+      <AnimatePresence>
+        {quoteLead && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={()=>setQuoteLead(null)}>
+            <motion.div initial={{scale:0.9,y:20}} animate={{scale:1,y:0}} className="bg-[#1E293B] border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden" onClick={e=>e.stopPropagation()}>
+              <div className="p-5 border-b border-slate-700 bg-[#0F172A] flex items-center justify-between">
+                <div><h3 className="text-lg font-bold text-white flex items-center gap-2"><FileText size={20} className="text-purple-400"/>Quotation Builder</h3><p className="text-xs text-slate-400 mt-0.5">{quoteLead.companyName||quoteLead.company_name} — {quoteLead.contactName||quoteLead.contact_name}</p></div>
+                <button onClick={()=>setQuoteLead(null)} className="text-slate-500 hover:text-white"><X size={20}/></button>
+              </div>
+              <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-2">
+                  {quoteItems.map((it,i) => (
+                    <div key={i} className="flex items-center gap-2 bg-[#0F172A] border border-slate-800 rounded-xl p-3">
+                      <input placeholder="Description" value={it.desc} onChange={e=>updateQuoteLine(i,'desc',e.target.value)} className="flex-1 bg-transparent text-sm text-white outline-none placeholder-slate-500"/>
+                      <input type="number" placeholder="Qty" value={it.qty||''} onChange={e=>updateQuoteLine(i,'qty',parseInt(e.target.value)||0)} className="w-16 bg-[#1E293B] border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white text-center outline-none"/>
+                      <input type="number" placeholder="Price" value={it.price||''} onChange={e=>updateQuoteLine(i,'price',parseFloat(e.target.value)||0)} className="w-24 bg-[#1E293B] border border-slate-700 rounded-lg px-2 py-1.5 text-sm text-white text-right outline-none"/>
+                      <span className="text-sm text-emerald-400 font-bold w-24 text-right">₹{(it.qty*it.price).toLocaleString()}</span>
+                      {quoteItems.length>1 && <button onClick={()=>removeQuoteLine(i)} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={12}/></button>}
+                    </div>
+                  ))}
+                  <button onClick={addQuoteLine} className="w-full border border-dashed border-slate-700 text-slate-500 hover:text-white hover:border-slate-500 rounded-xl py-2 text-xs flex items-center justify-center gap-1 transition-colors"><Plus size={12}/>Add Line Item</button>
+                </div>
+                <div className="border-t border-slate-800 pt-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm"><span className="text-slate-400">Subtotal</span><span className="text-white font-bold">₹{quoteSubtotal.toLocaleString()}</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-slate-400">Tax Rate</span><div className="flex items-center gap-1"><input type="number" value={quoteTaxRate} onChange={e=>setQuoteTaxRate(parseFloat(e.target.value)||0)} className="w-16 bg-[#0F172A] border border-slate-700 rounded px-2 py-1 text-sm text-white text-center outline-none"/>%</div></div>
+                  <div className="flex items-center justify-between text-lg border-t border-slate-800 pt-2"><span className="text-white font-bold">Total</span><span className="text-emerald-400 font-bold">₹{quoteTotal.toLocaleString(undefined,{minimumFractionDigits:2})}</span></div>
+                </div>
+              </div>
+              <div className="p-4 border-t border-slate-700 bg-[#0F172A] flex gap-3">
+                <button onClick={handleSaveQuotation} disabled={quoteSaving||quoteItems.every(it=>!it.desc)} className="flex-1 bg-purple-500 hover:bg-purple-600 disabled:opacity-40 text-white font-bold py-2.5 rounded-xl transition-colors">{quoteSaving?'Saving...':'Save Quotation'}</button>
+                <button onClick={()=>setQuoteLead(null)} className="px-4 py-2.5 bg-[#1E293B] text-slate-400 hover:text-white rounded-xl border border-slate-700 transition-colors">Cancel</button>
               </div>
             </motion.div>
           </motion.div>

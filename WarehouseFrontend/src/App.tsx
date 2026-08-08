@@ -13,6 +13,7 @@ import { ProjectOverview } from './pages/ProjectOverview';
 import { DataIngestion } from './pages/DataIngestion';
 import { FinancialDashboard } from './pages/FinancialDashboard';
 import { WarehouseMapPage } from './pages/WarehouseMapPage';
+import { ContactsDirectory } from './pages/ContactsDirectory';
 import { CommandPalette } from './CommandPalette';
 
 // Role-based route access map
@@ -98,6 +99,7 @@ const App = () => {
             <Route path="/projects" element={<RoleGate role="SUPER_ADMIN" path="/projects"><ProjectOverview /></RoleGate>} />
             <Route path="/data-ingestion" element={<RoleGate role="SUPER_ADMIN" path="/data-ingestion"><DataIngestion /></RoleGate>} />
             <Route path="/finance" element={<RoleGate role="SUPER_ADMIN" path="/finance"><FinancialDashboard /></RoleGate>} />
+            <Route path="/contacts" element={<ContactsDirectory />} />
             <Route path="/settings" element={<RoleGate role="SUPER_ADMIN" path="/settings"><Settings /></RoleGate>} />
             <Route path="/logic-debugger" element={<Navigate to="/inventory-engine" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -120,6 +122,7 @@ const App = () => {
           <Route path="/projects" element={<RoleGate role={userRole} path="/projects"><ProjectOverview /></RoleGate>} />
           <Route path="/data-ingestion" element={<RoleGate role={userRole} path="/data-ingestion"><DataIngestion /></RoleGate>} />
           <Route path="/finance" element={<RoleGate role={userRole} path="/finance"><FinancialDashboard /></RoleGate>} />
+          <Route path="/contacts" element={<ContactsDirectory />} />
           <Route path="/settings" element={<RoleGate role={userRole} path="/settings"><Settings /></RoleGate>} />
           <Route path="/logic-debugger" element={<Navigate to="/inventory-engine" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
