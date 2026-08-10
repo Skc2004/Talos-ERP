@@ -32,8 +32,9 @@ public class CrmLead {
     @Column(name = "potential_value", precision = 15, scale = 2)
     private BigDecimal potentialValue = BigDecimal.ZERO;
 
-    @Column(columnDefinition = "lead_status")
+    @Column(name = "status", columnDefinition = "lead_status")
     @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM)
     private LeadStatus status = LeadStatus.NEW;
 
     private String source;

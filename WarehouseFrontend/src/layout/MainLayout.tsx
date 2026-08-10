@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin, Building2 } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin, Building2, BarChart3 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { CommandPalette } from '../CommandPalette';
 import { HealthHeartbeat } from '../components/HealthHeartbeat';
@@ -54,6 +54,7 @@ export const MainLayout = ({ children, session, role }: any) => {
                     {['SUPER_ADMIN', 'FINANCE'].includes(role) && (
                         <NavLink to="/finance" icon={<Wallet size={18} />} label="Cashflow & P&L" active={location.pathname === '/finance'} />
                     )}
+                    <NavLink to="/reports" icon={<BarChart3 size={18} />} label="Reports & Analytics" active={location.pathname === '/reports'} />
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">System</div>
                     {['SUPER_ADMIN', 'PLANNER'].includes(role) && (

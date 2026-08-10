@@ -137,14 +137,27 @@ export const CrmDashboard = () => {
 
   async function handleUpdateStatus(leadId: string, newStatus: string) {
     try {
+      // Fetch current lead data first to include all required DTO fields
+      const existing = await fetch(`${JAVA_API}/crm/leads/${leadId}`).then(r => r.json());
       await fetch(`${JAVA_API}/crm/leads/${leadId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({
+          contactName: existing.contactName,
+          contactEmail: existing.contactEmail,
+          contactPhone: existing.contactPhone,
+          companyName: existing.companyName,
+          potentialValue: existing.potentialValue,
+          status: newStatus,
+          source: existing.source,
+          notes: existing.notes,
+          assignedTo: existing.assignedTo
+        })
       });
       loadData();
     } catch (e) { console.error(e); }
   }
+
 
   async function handleConvertProject(lead: any) {
     const estimatedHours = prompt("Enter estimated hours for this new project:", "80");

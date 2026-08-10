@@ -17,34 +17,41 @@ public class Project {
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     private UUID id;
 
-    @Column(name = "lead_id")
-    private UUID leadId;
-
     @Column(name = "project_name", nullable = false)
     private String projectName;
 
     @Column(name = "client_name")
     private String clientName;
 
+    @Column(name = "status")
+    private String status;
+
+    @Column(name = "priority")
+    private String priority;
+
+    @Column(name = "deadline")
     private ZonedDateTime deadline;
 
-    @Column(columnDefinition = "project_status")
-    @Enumerated(EnumType.STRING)
-    private ProjectStatus status = ProjectStatus.BACKLOG;
-
-    private Integer priority = 50;
-
-    @Column(name = "estimated_hours", precision = 8, scale = 2)
+    @Column(name = "estimated_hours", precision = 10, scale = 2)
     private BigDecimal estimatedHours;
 
-    @Column(name = "actual_hours", precision = 8, scale = 2)
-    private BigDecimal actualHours = BigDecimal.ZERO;
-
-    @Column(name = "estimated_cost", precision = 15, scale = 2)
-    private BigDecimal estimatedCost;
+    @Column(name = "actual_hours", precision = 10, scale = 2)
+    private BigDecimal actualHours;
 
     @Column(name = "machine_id")
     private String machineId;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "budget", precision = 15, scale = 2)
+    private BigDecimal budget;
+
+    @Column(name = "hourly_rate", precision = 10, scale = 2)
+    private BigDecimal hourlyRate;
+
+    @Column(name = "tags", columnDefinition = "text[]")
+    private String[] tags;
 
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;

@@ -269,21 +269,24 @@ const Dashboard = ({ role }: any) => {
       </div>
 
       {/* Prophet Predictions */}
-      <div className="bg-[#1E293B] border border-slate-800 rounded-xl p-6 shadow-sm h-96">
+      <div className="bg-[#1E293B] border border-slate-800 rounded-xl p-6 shadow-sm">
         <h3 className="text-lg font-medium text-slate-200 mb-4">Meta Prophet: 30-Day Predictive Demand (80% Confidence)</h3>
-        <ResponsiveContainer width="99%" height="85%">
-          <ComposedChart data={forecastData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-            <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-            <Tooltip contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', fontSize: '12px' }} />
-            <Legend />
-            <Area type="monotone" dataKey="upperBound" fill="#4f46e5" stroke="none" fillOpacity={0.12} name="Upper Bound" />
-            <Area type="monotone" dataKey="lowerBound" fill="#0F172A" stroke="none" fillOpacity={1} name="Lower Bound" />
-            <Line type="monotone" dataKey="forecast" stroke="#10b981" strokeWidth={3} dot={false} name="Predicted Demand" />
-          </ComposedChart>
-        </ResponsiveContainer>
+        <div style={{ width: '100%', height: 320, minHeight: 320 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={forecastData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+              <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '8px', fontSize: '12px' }} />
+              <Legend />
+              <Area type="monotone" dataKey="upperBound" fill="#4f46e5" stroke="none" fillOpacity={0.12} name="Upper Bound" />
+              <Area type="monotone" dataKey="lowerBound" fill="#0F172A" stroke="none" fillOpacity={1} name="Lower Bound" />
+              <Line type="monotone" dataKey="forecast" stroke="#10b981" strokeWidth={3} dot={false} name="Predicted Demand" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
       </div>
+
 
       {/* Prescriptive Agentic Insight Cards (The "Wow Factor") */}
       <div>
