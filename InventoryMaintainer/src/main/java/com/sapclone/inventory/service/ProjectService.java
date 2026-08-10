@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -42,16 +41,16 @@ public class ProjectService {
         // Step 1: Update lead status
         lead.setStatus(LeadStatus.WON);
 
-        // Step 2: Create project
+        // Step 2: Create project — using the new flat Project entity
         Project project = new Project();
-        project.setLeadId(leadId);
         project.setProjectName(projectName);
         project.setClientName(lead.getCompanyName());
         project.setDeadline(ZonedDateTime.now().plusDays(30));
-        project.setStatus(ProjectStatus.PLANNING);
-        project.setPriority(20);
+        project.setStatus("PLANNING");
+        project.setPriority("20");
         project.setEstimatedHours(BigDecimal.valueOf(estimatedHours));
-        project.setEstimatedCost(lead.getPotentialValue().multiply(BigDecimal.valueOf(0.6)));
+        project.setBudget(lead.getPotentialValue() != null ? lead.getPotentialValue().multiply(BigDecimal.valueOf(0.6)) : BigDecimal.ZERO);
+        project.setHourlyRate(BigDecimal.valueOf(150));
         project = projectRepository.save(project);
 
         // Step 3: Link lead to project
@@ -59,31 +58,34 @@ public class ProjectService {
         leadRepository.save(lead);
 
         // Step 4: Book expected revenue in General Ledger
+        BigDecimal expectedRevenue = lead.getPotentialValue() != null ? lead.getPotentialValue() : BigDecimal.ZERO;
+        BigDecimal projectedCost = project.getBudget() != null ? project.getBudget() : BigDecimal.ZERO;
+
         GeneralLedger revenueEntry = new GeneralLedger();
         revenueEntry.setAccountCode("REV-EXPECTED");
-        revenueEntry.setCredit(lead.getPotentialValue());
+        revenueEntry.setCredit(expectedRevenue);
         revenueEntry.setDebit(BigDecimal.ZERO);
         revenueEntry.setDescription("Expected revenue from lead conversion: " + lead.getCompanyName() + " - " + projectName);
         ledgerRepository.save(revenueEntry);
 
         GeneralLedger costEntry = new GeneralLedger();
         costEntry.setAccountCode("COGS-PROJECTED");
-        costEntry.setDebit(project.getEstimatedCost());
+        costEntry.setDebit(projectedCost);
         costEntry.setCredit(BigDecimal.ZERO);
         costEntry.setDescription("Projected COGS for project: " + projectName);
         ledgerRepository.save(costEntry);
 
         log.info("Lead {} converted to Project {}. Revenue: {}, Projected COGS: {}",
-                leadId, project.getId(), lead.getPotentialValue(), project.getEstimatedCost());
+                leadId, project.getId(), expectedRevenue, projectedCost);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "converted");
         result.put("leadId", leadId);
         result.put("projectId", project.getId());
         result.put("projectName", projectName);
-        result.put("expectedRevenue", lead.getPotentialValue());
-        result.put("projectedCost", project.getEstimatedCost());
-        result.put("projectedMargin", lead.getPotentialValue().subtract(project.getEstimatedCost()));
+        result.put("expectedRevenue", expectedRevenue);
+        result.put("projectedCost", projectedCost);
+        result.put("projectedMargin", expectedRevenue.subtract(projectedCost));
         return result;
     }
 
@@ -92,7 +94,7 @@ public class ProjectService {
      * T_slack = deadline - (now + estimated_production_hours)
      */
     public List<Map<String, Object>> getDeadlineHealth() {
-        List<Project> active = projectRepository.findActiveProjects();
+        List<Project> active = projectRepository.findByStatusIn(List.of("BACKLOG", "PLANNING", "IN_PROGRESS", "QA"));
         List<Map<String, Object>> health = new ArrayList<>();
 
         for (Project p : active) {
@@ -129,7 +131,7 @@ public class ProjectService {
      * Detects resource conflicts: projects competing for the same machine within 7 days.
      */
     public List<Map<String, Object>> detectResourceConflicts() {
-        List<Project> active = projectRepository.findActiveProjects();
+        List<Project> active = projectRepository.findByStatusIn(List.of("BACKLOG", "PLANNING", "IN_PROGRESS", "QA"));
         List<Map<String, Object>> conflicts = new ArrayList<>();
 
         for (int i = 0; i < active.size(); i++) {

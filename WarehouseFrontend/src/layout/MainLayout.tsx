@@ -1,9 +1,10 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin, Building2, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin, Building2, BarChart3, Network, Wrench } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { CommandPalette } from '../CommandPalette';
 import { HealthHeartbeat } from '../components/HealthHeartbeat';
+import { NotificationCentre } from '../components/NotificationCentre';
 import { motion } from 'framer-motion';
 
 export const MainLayout = ({ children, session, role }: any) => {
@@ -46,6 +47,12 @@ export const MainLayout = ({ children, session, role }: any) => {
                     {['SUPER_ADMIN', 'PLANNER', 'SALES'].includes(role) && (
                         <NavLink to="/projects" icon={<CalendarDays size={18} />} label="Project Timeline" active={location.pathname === '/projects'} />
                     )}
+                    {['SUPER_ADMIN', 'PLANNER'].includes(role) && (
+                        <NavLink to="/resource-matrix" icon={<Network size={18} />} label="Resource Matrix" active={location.pathname === '/resource-matrix'} />
+                    )}
+                    {['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'].includes(role) && (
+                        <NavLink to="/work-orders" icon={<Wrench size={18} />} label="Work Orders" active={location.pathname === '/work-orders'} />
+                    )}
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">Data & Finance</div>
                     {['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'].includes(role) && (
@@ -80,7 +87,8 @@ export const MainLayout = ({ children, session, role }: any) => {
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Top Bar with Heartbeat */}
-                <div className="flex items-center justify-end px-6 py-2 border-b border-slate-800 bg-[#1E293B]/50 shrink-0">
+                <div className="flex items-center justify-end gap-3 px-6 py-2 border-b border-slate-800 bg-[#1E293B]/50 shrink-0">
+                    <NotificationCentre />
                     <HealthHeartbeat />
                 </div>
                 <main className="flex-1 overflow-y-auto p-4 sm:p-8">
