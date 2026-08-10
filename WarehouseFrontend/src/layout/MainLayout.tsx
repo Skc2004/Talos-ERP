@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin, Building2, BarChart3, Network, Wrench, Layers, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin, Building2, BarChart3, Network, Wrench, Layers, ClipboardList, FlaskConical, UserCircle2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { CommandPalette } from '../CommandPalette';
 import { HealthHeartbeat } from '../components/HealthHeartbeat';
@@ -17,7 +17,7 @@ export const MainLayout = ({ children, session, role }: any) => {
             {/* Dynamic Sidebar */}
             <motion.aside 
                 initial={{ x: -250 }} animate={{ x: 0 }}
-                className="w-64 bg-[#1E293B] border-r border-slate-800 flex flex-col shrink-0 shadow-2xl"
+                className="w-64 bg-[#1E293B] border-r border-slate-800 flex flex-col h-full overflow-hidden shrink-0 shadow-2xl"
             >
                 <div className="p-6 border-b border-slate-800">
                     <div className="flex items-center gap-3">
@@ -26,7 +26,7 @@ export const MainLayout = ({ children, session, role }: any) => {
                     </div>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-2">
+                <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-4 px-2">Menu</div>
                     
                     <NavLink to="/" icon={<LayoutDashboard size={18} />} label="Global Pulse" active={location.pathname === '/'} />
@@ -60,6 +60,12 @@ export const MainLayout = ({ children, session, role }: any) => {
                     )}
                     {['SUPER_ADMIN', 'FINANCE', 'PLANNER'].includes(role) && (
                         <NavLink to="/procurement" icon={<ClipboardList size={18} />} label="Procurement" active={location.pathname === '/procurement'} />
+                    )}
+                    {['SUPER_ADMIN', 'PLANNER', 'WAREHOUSE_OPERATOR'].includes(role) && (
+                        <NavLink to="/quality" icon={<FlaskConical size={18} />} label="Quality Control" active={location.pathname === '/quality'} />
+                    )}
+                    {['SUPER_ADMIN', 'FINANCE', 'PLANNER'].includes(role) && (
+                        <NavLink to="/hr" icon={<UserCircle2 size={18} />} label="HR Module" active={location.pathname === '/hr'} />
                     )}
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">Data & Finance</div>
@@ -100,7 +106,9 @@ export const MainLayout = ({ children, session, role }: any) => {
                     <HealthHeartbeat />
                 </div>
                 <main className="flex-1 overflow-y-auto p-4 sm:p-8">
-                    {children}
+                    <motion.div key={location.pathname} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                        {children}
+                    </motion.div>
                 </main>
             </div>
         </div>
