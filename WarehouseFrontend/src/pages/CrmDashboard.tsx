@@ -20,6 +20,7 @@ export const CrmDashboard = () => {
   const [leads, setLeads] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [pipeline, setPipeline] = useState<any>({});
+  const [competitors, setCompetitors] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [showNewLead, setShowNewLead] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,11 +71,17 @@ export const CrmDashboard = () => {
   useEffect(() => {
     loadData();
     loadEmployees();
+    loadCompetitors();
     const channel = supabase.channel('crm_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_leads' }, () => loadData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  async function loadCompetitors() {
+    const { data } = await supabase.from('competitor_data').select('*').order('created_at', { ascending: false });
+    if (data) setCompetitors(data);
+  }
 
   async function loadData() {
     try {
@@ -634,6 +641,56 @@ export const CrmDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Market Intelligence Panel ── */}
+      {competitors.length > 0 && (
+        <div className="bg-[#1E293B] border border-slate-800 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-800 bg-[#0F172A] flex items-center gap-2">
+            <Target size={16} className="text-purple-400" />
+            <h3 className="text-sm font-bold text-white">Market Intelligence</h3>
+            <span className="ml-auto text-[10px] text-slate-500">{competitors.length} competitors tracked</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-800">
+                  {['Competitor', 'Market Segment', 'Est. Revenue', 'Strengths', 'Weaknesses', 'Threat Level'].map(h => (
+                    <th key={h} className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-4 py-2">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {competitors.map((c, i) => {
+                  const threat = c.threat_level || c.market_share_pct || 50;
+                  const threatColor = threat >= 70 ? 'text-red-400' : threat >= 40 ? 'text-amber-400' : 'text-emerald-400';
+                  return (
+                    <tr key={c.id || i} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-bold text-white">{c.company_name || c.name}</div>
+                        {c.website && <div className="text-[10px] text-slate-500">{c.website}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">{c.market_segment || c.industry || '—'}</td>
+                      <td className="px-4 py-3 text-xs text-slate-300">{c.estimated_revenue ? `₹${Number(c.estimated_revenue).toLocaleString('en-IN')}` : '—'}</td>
+                      <td className="px-4 py-3 text-xs text-emerald-400">{c.strengths || '—'}</td>
+                      <td className="px-4 py-3 text-xs text-red-400">{c.weaknesses || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${threat >= 70 ? 'bg-red-500' : threat >= 40 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                              style={{ width: `${Math.min(100, threat)}%` }} />
+                          </div>
+                          <span className={`text-[10px] font-bold ${threatColor}`}>{threat}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
     </motion.div>
   );
 };

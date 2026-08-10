@@ -265,7 +265,7 @@ export const ProjectOverview = () => {
                         onClick={() => setExpandedRow(isExpanded ? null : item.id)}>
                         <div className="w-44 shrink-0">
                           <div className="text-xs font-semibold text-white truncate">{item.project_name}</div>
-                          <div className="text-[10px] text-slate-500 truncate">{item.client_name}</div>
+                          <div className="text-xs text-slate-400">{(Object.values(risks).flat() as any[]).length} risks identified</div>
                         </div>
                         <div className="flex-1 relative h-8 bg-[#0F172A] rounded-lg overflow-hidden border border-slate-800">
                           <div className={`absolute h-full ${STATUS_COLORS[item.status] || 'bg-slate-500'} opacity-70 rounded-lg`}
@@ -388,10 +388,10 @@ export const ProjectOverview = () => {
                   <div className="w-16 text-[10px] text-slate-500 text-right pr-2 flex items-center justify-end font-bold">{prob} Prob</div>
                   {IMPACT_LEVELS.map(imp => {
                     const sv = riskSeverity(prob, imp);
-                    const cellRisks = Object.values(risks).flat().filter(r => r.probability === prob && r.impact === imp);
+                    const cellRisks = (Object.values(risks).flat() as any[]).filter((r: any) => r.probability === prob && r.impact === imp);
                     return (
                       <div key={imp} className={`flex-1 min-h-16 rounded-lg border p-1 space-y-1 ${sv.cls}`}>
-                        {cellRisks.map(r => (
+                        {cellRisks.map((r: any) => (
                           <div key={r.id} className="text-[9px] bg-black/30 rounded p-1 truncate" title={r.title}>{r.title}</div>
                         ))}
                       </div>
@@ -436,7 +436,7 @@ export const ProjectOverview = () => {
                 </div>
               );
             })}
-            {Object.values(risks).every(r => r.length === 0) && (
+            {(Object.values(risks) as any[]).every((r: any) => r.length === 0) && (
               <div className="text-center text-slate-600 py-12">No risks registered. Click "Add Risk" to start.</div>
             )}
           </motion.div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin, Building2, BarChart3, Network, Wrench } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, Cpu, LogOut, ShieldCheck, Users, Kanban, CalendarDays, Upload, Wallet, PackageSearch, MapPin, Building2, BarChart3, Network, Wrench, Layers, ClipboardList } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { CommandPalette } from '../CommandPalette';
 import { HealthHeartbeat } from '../components/HealthHeartbeat';
@@ -52,6 +52,14 @@ export const MainLayout = ({ children, session, role }: any) => {
                     )}
                     {['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'].includes(role) && (
                         <NavLink to="/work-orders" icon={<Wrench size={18} />} label="Work Orders" active={location.pathname === '/work-orders'} />
+                    )}
+
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">Manufacturing</div>
+                    {['SUPER_ADMIN', 'PLANNER', 'WAREHOUSE_OPERATOR'].includes(role) && (
+                        <NavLink to="/bom" icon={<Layers size={18} />} label="Bill of Materials" active={location.pathname === '/bom'} />
+                    )}
+                    {['SUPER_ADMIN', 'FINANCE', 'PLANNER'].includes(role) && (
+                        <NavLink to="/procurement" icon={<ClipboardList size={18} />} label="Procurement" active={location.pathname === '/procurement'} />
                     )}
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-8 px-2">Data & Finance</div>

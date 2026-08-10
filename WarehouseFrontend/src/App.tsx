@@ -17,6 +17,8 @@ import { ContactsDirectory } from './pages/ContactsDirectory';
 import { ReportsAnalytics } from './pages/ReportsAnalytics';
 import { ResourceMatrix } from './pages/ResourceMatrix';
 import { WorkOrderBoard } from './pages/WorkOrderBoard';
+import { BillOfMaterials } from './pages/BillOfMaterials';
+import { ProcurementDashboard } from './pages/ProcurementDashboard';
 import { CommandPalette } from './CommandPalette';
 
 // Role-based route access map
@@ -32,6 +34,8 @@ const ROLE_ACCESS: Record<string, string[]> = {
   '/settings':       ['SUPER_ADMIN', 'FINANCE', 'WAREHOUSE_OPERATOR', 'SALES', 'PLANNER', 'VIEWER'],
   '/resource-matrix':['SUPER_ADMIN', 'PLANNER'],
   '/work-orders':    ['SUPER_ADMIN', 'WAREHOUSE_OPERATOR', 'PLANNER'],
+  '/bom':            ['SUPER_ADMIN', 'PLANNER', 'WAREHOUSE_OPERATOR'],
+  '/procurement':    ['SUPER_ADMIN', 'FINANCE', 'PLANNER'],
 };
 
 const RoleGate = ({ role, path, children }: { role: string; path: string; children: React.ReactNode }) => {
@@ -109,6 +113,8 @@ const App = () => {
             <Route path="/settings" element={<RoleGate role="SUPER_ADMIN" path="/settings"><Settings /></RoleGate>} />
             <Route path="/resource-matrix" element={<RoleGate role="SUPER_ADMIN" path="/resource-matrix"><ResourceMatrix /></RoleGate>} />
             <Route path="/work-orders" element={<RoleGate role="SUPER_ADMIN" path="/work-orders"><WorkOrderBoard /></RoleGate>} />
+            <Route path="/bom" element={<RoleGate role="SUPER_ADMIN" path="/bom"><BillOfMaterials /></RoleGate>} />
+            <Route path="/procurement" element={<RoleGate role="SUPER_ADMIN" path="/procurement"><ProcurementDashboard /></RoleGate>} />
             <Route path="/logic-debugger" element={<Navigate to="/inventory-engine" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -135,6 +141,8 @@ const App = () => {
           <Route path="/settings" element={<RoleGate role={userRole} path="/settings"><Settings /></RoleGate>} />
           <Route path="/resource-matrix" element={<RoleGate role={userRole} path="/resource-matrix"><ResourceMatrix /></RoleGate>} />
           <Route path="/work-orders" element={<RoleGate role={userRole} path="/work-orders"><WorkOrderBoard /></RoleGate>} />
+          <Route path="/bom" element={<RoleGate role={userRole} path="/bom"><BillOfMaterials /></RoleGate>} />
+          <Route path="/procurement" element={<RoleGate role={userRole} path="/procurement"><ProcurementDashboard /></RoleGate>} />
           <Route path="/logic-debugger" element={<Navigate to="/inventory-engine" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

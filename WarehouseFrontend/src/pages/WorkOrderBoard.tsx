@@ -34,7 +34,9 @@ export const WorkOrderBoard = () => {
 
   async function loadAll() {
     const [woRes, moRes, iotRes] = await Promise.all([
-      supabase.from('work_orders').select('*').order('planned_start', { ascending: true }),
+      supabase.from('work_orders')
+        .select('*, parent_sku:sku_master(sku_code, description), bom:bom_header(bom_code, description)')
+        .order('planned_start_date', { ascending: true }),
       supabase.from('maintenance_orders').select('*').order('scheduled_date', { ascending: true }),
       supabase.from('iot_telemetry').select('*').order('recorded_at', { ascending: false }).limit(50),
     ]);
@@ -70,9 +72,9 @@ export const WorkOrderBoard = () => {
 
   const woKpis = {
     open: workOrders.filter(w => !['COMPLETED', 'CANCELLED'].includes(w.status)).length,
-    inProgress: workOrders.filter(w => w.status === 'IN_PROGRESS').length,
-    overdue: workOrders.filter(w => w.planned_end && new Date(w.planned_end) < now && w.status !== 'COMPLETED').length,
-    completedThisMonth: workOrders.filter(w => w.status === 'COMPLETED' && w.planned_end && new Date(w.planned_end).getMonth() === now.getMonth()).length,
+    inProgress: workOrders.filter(w => w.status === 'IN_PROGRESS' || w.status === 'RELEASED').length,
+    overdue: workOrders.filter(w => w.planned_end_date && new Date(w.planned_end_date) < now && w.status !== 'COMPLETED').length,
+    completedThisMonth: workOrders.filter(w => w.status === 'COMPLETED' && w.planned_end_date && new Date(w.planned_end_date).getMonth() === now.getMonth()).length,
   };
 
   const machineIot = iotData.filter(d => d.machine_id === selectedMachineId).slice(0, 5);
@@ -135,26 +137,32 @@ export const WorkOrderBoard = () => {
             {/* WO Cards */}
             <div className="grid grid-cols-3 gap-3">
               {filteredWOs.map(wo => {
-                const isOverdue = wo.planned_end && new Date(wo.planned_end) < now && wo.status !== 'COMPLETED';
+                const isOverdue = wo.planned_end_date && new Date(wo.planned_end_date) < now && wo.status !== 'COMPLETED';
+                const pct = wo.planned_quantity > 0 ? Math.round((wo.completed_quantity / wo.planned_quantity) * 100) : 0;
                 return (
                   <div key={wo.id} className={`bg-[#1E293B] border rounded-xl p-4 space-y-2 ${isOverdue ? 'border-red-500/30' : 'border-slate-800'}`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-slate-500">{wo.wo_number || wo.id?.slice(0, 8)}</span>
+                      <span className="text-[10px] font-mono text-slate-500">{wo.wo_number}</span>
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg ${WO_STATUS_COLORS[wo.status] || 'bg-slate-700 text-slate-400'}`}>{wo.status}</span>
                     </div>
-                    <div className="text-sm font-semibold text-white truncate">{wo.product_name || wo.product_code || 'Work Order'}</div>
+                    <div className="text-sm font-semibold text-white truncate">{wo.parent_sku?.sku_code || wo.parent_sku?.description || 'Work Order'}</div>
                     <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-500">
-                      <span>Qty: <span className="text-white">{wo.quantity || '—'}</span></span>
-                      <span>Machine: <span className="text-cyan-400">{wo.machine_id || '—'}</span></span>
+                      <span>Planned: <span className="text-white">{wo.planned_quantity}</span></span>
+                      <span>Done: <span className="text-cyan-400">{wo.completed_quantity || 0}</span></span>
                     </div>
-                    {wo.planned_end && (
+                    {wo.planned_quantity > 0 && (
+                      <div className="h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-cyan-500'}`} style={{ width: `${Math.min(100,pct)}%` }} />
+                      </div>
+                    )}
+                    {wo.planned_end_date && (
                       <div className={`text-[10px] flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-slate-500'}`}>
                         <Clock size={9}/>
-                        {isOverdue ? '⚠️ Overdue' : 'Due:'} {new Date(wo.planned_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {isOverdue ? '⚠️ Overdue' : 'Due:'} {new Date(wo.planned_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </div>
                     )}
                     <div className="flex gap-1 pt-1">
-                      {['PLANNED', 'IN_PROGRESS', 'COMPLETED'].filter(s => s !== wo.status).map(s => (
+                      {['DRAFT','RELEASED','IN_PROGRESS','COMPLETED'].filter(s => s !== wo.status).slice(0,2).map(s => (
                         <button key={s} onClick={() => updateWOStatus(wo.id, s)}
                           className="text-[9px] bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white px-2 py-0.5 rounded transition-colors">
                           → {s.replace('_', ' ')}
