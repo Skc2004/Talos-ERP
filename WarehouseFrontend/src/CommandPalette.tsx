@@ -1,16 +1,43 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Search, Sparkles, Loader2, X, Table2, ChevronRight, Bot } from 'lucide-react';
+import { Search, Sparkles, Loader2, X, Table2, ChevronRight, Bot, Navigation } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const PYTHON_API = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:8000';
 
 export const CommandPalette = () => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const NAV_ROUTES = [
+    { path: '/',                keywords: ['dashboard', 'home', 'pulse'],       label: 'Global Pulse Dashboard' },
+    { path: '/crm',             keywords: ['crm', 'leads', 'pipeline', 'sales'], label: 'CRM & Pipeline' },
+    { path: '/kanban',          keywords: ['kanban', 'shop floor', 'production'], label: 'Shop Floor Kanban' },
+    { path: '/projects',        keywords: ['projects', 'gantt', 'milestones'],  label: 'Project Overview' },
+    { path: '/resource-matrix', keywords: ['resource', 'matrix', 'allocation'], label: 'Resource Matrix' },
+    { path: '/work-orders',     keywords: ['work orders', 'wo', 'manufacturing'], label: 'Work Orders Board' },
+    { path: '/bom',             keywords: ['bom', 'bill of materials', 'components'], label: 'Bill of Materials' },
+    { path: '/procurement',     keywords: ['procurement', 'purchase', 'po', 'vendor'], label: 'Procurement' },
+    { path: '/quality',         keywords: ['quality', 'qc', 'inspection', 'defects'], label: 'Quality Control' },
+    { path: '/hr',              keywords: ['hr', 'human resources', 'employees', 'staff'], label: 'HR Module' },
+    { path: '/finance',         keywords: ['finance', 'cashflow', 'p&l', 'profit'], label: 'Cashflow & P&L' },
+    { path: '/warehouse-map',   keywords: ['warehouse', 'map', 'zones'],        label: 'Warehouse Map' },
+    { path: '/contacts',        keywords: ['contacts', 'directory', 'people'],  label: 'Contacts Directory' },
+    { path: '/reports',         keywords: ['reports', 'analytics', 'charts'],   label: 'Reports & Analytics' },
+    { path: '/data-ingestion',  keywords: ['upload', 'import', 'data ingestion'], label: 'Sales Data Upload' },
+    { path: '/inventory-engine',keywords: ['inventory', 'logic', 'debugger'],   label: 'Inventory Engine' },
+    { path: '/system-health',   keywords: ['system', 'health', 'integrity'],    label: 'System Integrity' },
+    { path: '/settings',        keywords: ['settings', 'profile', 'rbac'],      label: 'Profile & RBAC' },
+  ];
+
+  const navMatches = query.trim().length >= 2
+    ? NAV_ROUTES.filter(r => r.keywords.some(k => k.includes(query.toLowerCase()) || query.toLowerCase().includes(k)))
+    : [];
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -139,6 +166,24 @@ export const CommandPalette = () => {
               ) : (
                 <div className="p-4 bg-slate-800/50 rounded-lg text-slate-400 text-sm">No results found.</div>
               )}
+            </div>
+          )}
+
+          {/* Nav shortcuts — shown when query matches a route */}
+          {navMatches.length > 0 && !result && (
+            <div className="p-2 border-b border-slate-800">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Navigation size={10} /> Navigate to
+              </div>
+              {navMatches.slice(0, 4).map(r => (
+                <button key={r.path}
+                  onClick={() => { navigate(r.path); setOpen(false); }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-indigo-500/10 hover:text-indigo-400 rounded-lg flex items-center gap-3 transition-colors">
+                  <ChevronRight size={14} className="text-slate-600" />
+                  <span className="flex-1">{r.label}</span>
+                  <span className="text-[10px] font-mono text-slate-600">{r.path}</span>
+                </button>
+              ))}
             </div>
           )}
 
