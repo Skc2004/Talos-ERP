@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-python
+  namespace: talos-erp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-python
+  template:
+    metadata:
+      labels:
+        app: backend-python
+    spec:
+      containers:
+      - name: backend-python
+        image: myrepo/insight-mantra:latest
+        env:
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: SUPABASE_URL
+        - name: SUPABASE_SERVICE_ROLE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: SUPABASE_SERVICE_ROLE_KEY
+        - name: ALLOWED_ORIGINS
+          value: "http://frontend:80,http://localhost:5173"
+        - name: REDIS_URL
+          value: "redis://redis:6379/0"
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka:29092"
+        ports:
+        - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-python
+  namespace: talos-erp
+spec:
+  selector:
+    app: backend-python
+  ports:
+  - port: 8000
+    targetPort: 8000

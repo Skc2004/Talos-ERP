@@ -22,6 +22,7 @@ import { ProcurementDashboard } from './pages/ProcurementDashboard';
 import { QualityControl } from './pages/QualityControl';
 import { HrModule } from './pages/HrModule';
 import { CommandPalette } from './CommandPalette';
+import OnboardingPage from './pages/OnboardingPage';
 
 // Role-based route access map
 const ROLE_ACCESS: Record<string, string[]> = {
@@ -62,6 +63,7 @@ const ROLE_DEFAULT_ROUTE: Record<string, string> = {
 const App = () => {
   const [session, setSession] = useState<any>(null);
   const [userRole, setUserRole] = useState('VIEWER');
+  const [hasTenant, setHasTenant] = useState(true);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -80,6 +82,9 @@ const App = () => {
   }, []);
 
   const extractRole = (currentSession: any) => {
+    const tenantId = currentSession?.user?.app_metadata?.tenant_id;
+    setHasTenant(!!tenantId);
+
     if (currentSession?.user?.app_metadata?.user_role) {
       setUserRole(currentSession.user.app_metadata.user_role);
     } else if (currentSession?.user?.user_metadata?.role) {
@@ -98,33 +103,23 @@ const App = () => {
   }
 
   if (!session) {
-    // For local testing and demo, bypass the auth wall since Supabase GitHub isn't configured
     return (
       <BrowserRouter>
-        <MainLayout session={{ user: { email: 'demo@taloserp.com' } }} role="SUPER_ADMIN">
-          <Routes>
-            <Route path="/" element={<Dashboard role="SUPER_ADMIN" />} />
-            <Route path="/inventory-engine" element={<RoleGate role="SUPER_ADMIN" path="/logic-debugger"><LogicDebugger /></RoleGate>} />
-            <Route path="/system-health" element={<RoleGate role="SUPER_ADMIN" path="/system-health"><SystemIntegrity /></RoleGate>} />
-            <Route path="/crm" element={<RoleGate role="SUPER_ADMIN" path="/crm"><CrmDashboard /></RoleGate>} />
-            <Route path="/kanban" element={<RoleGate role="SUPER_ADMIN" path="/kanban"><ShopFloorKanban /></RoleGate>} />
-            <Route path="/warehouse-map" element={<WarehouseMapPage />} />
-            <Route path="/projects" element={<RoleGate role="SUPER_ADMIN" path="/projects"><ProjectOverview /></RoleGate>} />
-            <Route path="/data-ingestion" element={<RoleGate role="SUPER_ADMIN" path="/data-ingestion"><DataIngestion /></RoleGate>} />
-            <Route path="/finance" element={<RoleGate role="SUPER_ADMIN" path="/finance"><FinancialDashboard /></RoleGate>} />
-            <Route path="/contacts" element={<ContactsDirectory />} />
-            <Route path="/reports" element={<ReportsAnalytics />} />
-            <Route path="/settings" element={<RoleGate role="SUPER_ADMIN" path="/settings"><Settings /></RoleGate>} />
-            <Route path="/resource-matrix" element={<RoleGate role="SUPER_ADMIN" path="/resource-matrix"><ResourceMatrix /></RoleGate>} />
-            <Route path="/work-orders" element={<RoleGate role="SUPER_ADMIN" path="/work-orders"><WorkOrderBoard /></RoleGate>} />
-            <Route path="/bom" element={<RoleGate role="SUPER_ADMIN" path="/bom"><BillOfMaterials /></RoleGate>} />
-            <Route path="/procurement" element={<RoleGate role="SUPER_ADMIN" path="/procurement"><ProcurementDashboard /></RoleGate>} />
-            <Route path="/quality" element={<RoleGate role="SUPER_ADMIN" path="/quality"><QualityControl /></RoleGate>} />
-            <Route path="/hr" element={<RoleGate role="SUPER_ADMIN" path="/hr"><HrModule /></RoleGate>} />
-            <Route path="/logic-debugger" element={<Navigate to="/inventory-engine" replace />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </MainLayout>
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  if (session && !hasTenant) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="*" element={<Navigate to="/onboarding" replace />} />
+        </Routes>
       </BrowserRouter>
     );
   }

@@ -43,11 +43,12 @@ An AI-powered, full-stack ERP platform inspired by SAP, built for real-time inve
 | Layer | Technology |
 |-------|-----------|
 | **Frontend** | React 18, Vite, TypeScript, TailwindCSS, Framer Motion, Recharts, Lucide Icons |
-| **Backend (Java)** | Spring Boot 3.2, Spring Data JPA, Spring Security, Resilience4j, Lombok |
+| **Backend (Java)** | Spring Boot 3.2, Spring Data JPA, Spring Security, Hibernate (Tenant-Aware), Lombok |
 | **Backend (Python)** | FastAPI, Celery, Prophet, HuggingFace Transformers, BeautifulSoup |
-| **Database** | PostgreSQL via Supabase (cloud) |
+| **Database** | PostgreSQL via Supabase (Cloud) with Row-Level Security (RLS) Multi-Tenancy |
 | **IoT** | Python telemetry simulator with anomaly detection |
-| **Message Queue** | Celery with SQLite broker (dev) / Redis (prod) |
+| **Message Queue** | Kafka (Event-Driven Architecture) and Redis |
+| **Deployment** | Docker Compose (Local) / Kubernetes Manifests (Production) |
 
 ---
 
@@ -203,18 +204,20 @@ python simulator.py
 
 ---
 
-## Enterprise Architecture Decisions
+## Enterprise SaaS Architecture Decisions
 
 | Concern | Implementation |
 |---------|---------------|
+| **Multi-Tenancy** | Supabase Row-Level Security (RLS) + Hibernate `TenantIdentifierResolver`. Total data isolation per organization. |
+| **Event-Driven Architecture** | Kafka handles asynchronous message brokering between the Java transactional API and Python AI workers. |
 | **CORS Security** | Centralized via Spring Security `SecurityConfig` + FastAPI env-based origins |
 | **Entity Exposure** | DTOs (`CrmLeadRequest`/`CrmLeadResponse`) with `DtoMapper` utility |
 | **Pagination** | Spring Data `Pageable` on all list endpoints |
 | **Business Rules** | Externalized to `business_rules.json` + Spring `@Value` properties |
-| **Async Processing** | Celery tasks for heavy AI workloads (lead scoring, competitor scanning) |
+| **Async Processing** | Celery + Kafka for heavy AI workloads (lead scoring, competitor scanning) |
 | **Graceful Degradation** | Frontend shows "Service Degraded" UI — no fake data injection |
 | **Configuration** | All credentials, URLs, and thresholds via environment variables |
-| **Circuit Breaking** | Resilience4j on inter-service calls (Java → Python) |
+| **Cloud Deployment** | Ready for production via provided Kubernetes (K8s) manifests. |
 
 ---
 
