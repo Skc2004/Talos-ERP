@@ -24,6 +24,7 @@ public class ProcurementService {
     private final StockLedgerRepository stockLedgerRepository;
     private final DemandForecastRepository demandForecastRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
+    private final org.springframework.kafka.core.KafkaTemplate<String, String> kafkaTemplate;
 
     /**
      * The Auto-Procurement Loop. Evaluates all SKUs hourly.
@@ -73,7 +74,15 @@ public class ProcurementService {
         // Prescriptive Agent: Should we mark up our sale price?
         checkMarketCaptureAndSuggestPricing(sku);
         
-        // TODO: Fire Kafka event KAFKA_PO_CREATED
+        // Fire Kafka event KAFKA_PO_CREATED
+        try {
+            String payload = String.format("{\"poId\":\"%s\",\"vendorId\":\"%s\",\"skuCode\":\"%s\",\"quantity\":%d}",
+                    po.getId(), po.getVendorId(), sku.getSkuCode(), quantity);
+            kafkaTemplate.send("po-created-events", po.getId().toString(), payload);
+            log.info("Fired Kafka event po-created-events for PO {}", po.getId());
+        } catch (Exception e) {
+            log.error("Failed to fire Kafka event", e);
+        }
     }
 
     private void checkMarketCaptureAndSuggestPricing(SkuMaster sku) {

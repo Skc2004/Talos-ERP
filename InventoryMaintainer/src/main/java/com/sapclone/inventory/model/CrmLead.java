@@ -1,5 +1,6 @@
 package com.sapclone.inventory.model;
 
+import org.hibernate.annotations.TenantId;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.GenericGenerator;
@@ -11,6 +12,10 @@ import java.util.UUID;
 @Entity
 @Table(name = "crm_leads")
 public class CrmLead {
+
+    @TenantId
+    private java.util.UUID tenantId;
+
 
     @Id
     @GeneratedValue(generator = "UUID")

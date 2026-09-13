@@ -93,3 +93,17 @@ celery_app.conf.beat_schedule = {
     },
 }
 
+@celery_app.task(bind=True, max_retries=3, retry_backoff=True)
+def trigger_anomaly_scan(self, po_data: dict):
+    """Run AI anomaly detection on new Purchase Order."""
+    try:
+        logger.info(f"AI Gateway processing KAFKA event for new PO: {po_data}")
+        # Here we would invoke a trained ML model to flag unusual quantities or vendors
+        quantity = po_data.get('quantity', 0)
+        if quantity > 10000:
+            logger.warning(f"ANOMALY DETECTED: PO quantity {quantity} is unusually high!")
+        return {'status': 'scanned', 'poId': po_data.get('poId')}
+    except Exception as exc:
+        logger.error(f"Anomaly scan failed: {exc}")
+        raise self.retry(exc=exc)
+

@@ -1,5 +1,6 @@
 package com.sapclone.inventory.model;
 
+import org.hibernate.annotations.TenantId;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.GenericGenerator;
@@ -18,6 +19,10 @@ import java.util.UUID;
 @Immutable  // Hibernate will reject any UPDATE attempts at ORM level
 @Table(name = "general_ledger")
 public class GeneralLedger {
+
+    @TenantId
+    private java.util.UUID tenantId;
+
     
     @Id
     @GeneratedValue(generator = "UUID")

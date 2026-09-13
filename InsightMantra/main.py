@@ -411,6 +411,15 @@ def crm_pipeline_summary():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+import threading
+from kafka_consumer import start_consumer
+
+@app.on_event("startup")
+def startup_event():
+    # Start Kafka consumer in a background thread
+    kafka_thread = threading.Thread(target=start_consumer, daemon=True)
+    kafka_thread.start()
+    logger.info("Kafka consumer thread started.")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

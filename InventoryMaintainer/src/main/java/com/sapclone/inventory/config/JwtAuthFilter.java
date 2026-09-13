@@ -60,12 +60,28 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(userId, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);
 
+                // Extract Tenant ID
+                String tenantIdStr = claims.get("tenant_id", String.class);
+                if (tenantIdStr == null) {
+                    Object appMeta = claims.get("app_metadata");
+                    if (appMeta instanceof java.util.Map) {
+                        tenantIdStr = (String) ((java.util.Map<?, ?>) appMeta).get("tenant_id");
+                    }
+                }
+                if (tenantIdStr != null) {
+                    TenantContext.setTenantId(java.util.UUID.fromString(tenantIdStr));
+                }
+
             } catch (Exception e) {
                 // Invalid token — let Spring Security handle as unauthenticated
                 logger.debug("JWT validation failed: " + e.getMessage());
             }
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
     }
 }
